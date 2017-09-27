@@ -1,0 +1,8 @@
+**.DS_Store
+**.gz
+**.pyc
+**.swp
+**__pycache__
+checkpoint
+data
+log
