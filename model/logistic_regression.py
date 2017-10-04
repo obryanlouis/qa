@@ -6,8 +6,8 @@ import tensorflow as tf
 from model.base_model import BaseModel
 
 class LogisticRegression(BaseModel):
-    def __init__(self, options, embeddings):
-        super().__init__(options, embeddings)
+    def __init__(self, options, embeddings, tf_iterators):
+        super().__init__(options, embeddings, tf_iterators)
         self.loss = None
         self.start_span_probs = None
         self.end_span_probs = None
@@ -21,8 +21,8 @@ class LogisticRegression(BaseModel):
                     tf.tile(tf.constant([self.options.max_ctx_length - 1])
                         , [self.batch_size])
                 , [self.batch_size])
-        start_loss, self.start_span_probs = self._add_logistic_regression("start_span_probs", inputs, input_dim, max_len, self.spn_placeholder[:,0])
-        end_loss, self.end_span_probs = self._add_logistic_regression("end_span_probs", inputs, input_dim, max_len, self.spn_placeholder[:,0])
+        start_loss, self.start_span_probs = self._add_logistic_regression("start_span_probs", inputs, input_dim, max_len, self.spn_iterator[:,0])
+        end_loss, self.end_span_probs = self._add_logistic_regression("end_span_probs", inputs, input_dim, max_len, self.spn_iterator[:,0])
         self.loss = (start_loss + end_loss) / 2
 
     def _add_logistic_regression(self, scope, inputs, input_dim, max_len, expected_spans):

@@ -11,8 +11,8 @@ from model.encoding_util import *
 from model.decoding_util import *
 
 class MatchLstm(BaseModel):
-    def __init__(self, options, embeddings):
-        super().__init__(options, embeddings)
+    def __init__(self, options, embeddings, tf_iterators):
+        super().__init__(options, embeddings, tf_iterators)
         self.loss = None
         self.start_span_probs = None
         self.end_span_probs = None
@@ -34,7 +34,7 @@ class MatchLstm(BaseModel):
         # decoding.
         self.loss, self.start_span_probs, self.end_span_probs = \
             decode_answer_pointer_boundary(self.options, self.batch_size,
-                self.keep_prob, self.spn_placeholder, ctx_attention)
+                self.keep_prob, self.spn_iterator, ctx_attention)
 
     def get_loss_op(self):
         return self.loss

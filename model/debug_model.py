@@ -6,11 +6,11 @@ import tensorflow as tf
 from model.logistic_regression import LogisticRegression
 
 class DebugModel(LogisticRegression):
-    def __init__(self, options, embeddings):
-        super().__init__(options, embeddings)
+    def __init__(self, options, embeddings, tf_iterators):
+        super().__init__(options, embeddings, tf_iterators)
 
     def get_start_spans(self):
-        return self.spn_placeholder[:,0]
+        return self.spn_iterator[:,0]
 
     def get_end_spans(self):
-        return self.spn_placeholder[:,1]
+        return self.spn_iterator[:,1]

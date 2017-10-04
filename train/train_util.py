@@ -4,6 +4,27 @@
 import numpy as np
 import tensorflow as tf
 
+def get_feed_dict(squad_data, tf_dataset, options, towers, is_train):
+    if len(towers) < 1:
+        raise Exception("There are no models in the list of towers to train")
+    examples_per_tower = int(options.batch_size / len(towers))
+    feed_dict = {}
+    for i in range(len(towers)):
+        tower = towers[i]
+        feed_dict[tower.get_embedding_placeholder()] = squad_data.embeddings
+        feed_dict[tower.get_keep_prob_placeholder()] = 1 if not is_train else 1 - options.dropout
+    train_handle = tf_dataset.get_train_handle()
+    dev_handle = tf_dataset.get_dev_handle()
+    tf_handle = tf_dataset.get_iterator_handle()
+    feed_dict[tf_handle] = train_handle if is_train else dev_handle
+    return feed_dict
+
+def get_train_feed_dict(squad_data, tf_dataset, options, towers):
+    return get_feed_dict(squad_data, tf_dataset, options, towers, is_train=True)
+
+def get_dev_feed_dict(squad_data, tf_dataset, options, towers):
+    return get_feed_dict(squad_data, tf_dataset, options, towers, is_train=False)
+
 def average_gradients(tower_grads):
   """Calculate the average gradient for each shared variable across all towers.
   Note that this function provides a synchronization point across all towers.

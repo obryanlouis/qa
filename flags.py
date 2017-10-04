@@ -63,12 +63,16 @@ f.DEFINE_integer("rnn_size", 50, "The dimension of rnn cells.")
 f.DEFINE_integer("num_rnn_layers", 1, "The number of rnn layers to use in " +
         "a single multi-rnn cell.")
 f.DEFINE_float("dropout", 0.2, "The amount of dropout to use.")
+f.DEFINE_integer("dataset_buffer_size", 1000, "Size of the dataset buffer." +
+        "See the Tensorflow Dataset API for details.")
 
 def get_options_from_flags():
     flags = tf.app.flags.FLAGS
     if flags.debug:
-        flags.num_evaluation_samples = 10
-        flags.batch_size = 4
+        flags.use_s3 = False
+        flags.clear_logs_before_training = True
+        flags.num_evaluation_samples = 32
+        flags.batch_size = 32
         flags.max_ctx_length = 10
         flags.max_qst_length = 8
         flags.clear_logs_before_training = True

@@ -52,6 +52,9 @@ def maybe_upload_data_files(options):
                 len(SAVE_FILE_NAMES), time.time() - start))
 
 def maybe_download_data_files(options):
+    """Downloads preprocessed training/dev data from S3 storage, if s3 is
+       enabled and those files haven't already been downloaded.
+    """
     if not options.use_s3:
         return
     if all([os.path.exists(os.path.join(options.data_dir, file_name)) for \

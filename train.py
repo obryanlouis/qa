@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 from preprocessing.s3_util import *
-from train.train import Trainer
+from train.trainer import Trainer
 from flags import get_options_from_flags
 
 def main(_):
