@@ -1,3 +1,5 @@
+"""Defines a base model to hold a common model interface.
+"""
 
 import tensorflow as tf
 
@@ -38,6 +40,7 @@ class BaseModel:
         self.padding_vector = tf.get_variable("padding_vector", shape=[1, self.word_dim])
         self.unique_word_vector = tf.get_variable("unique_word_vector", shape=[1, self.word_dim])
         with tf.device("/cpu:0"):
+            # Order of normal vocab, pad, unk must match vocab_util.py
             self.words_placeholder = tf.concat([self.embedding_placeholder,
                 self.padding_vector, self.unique_word_vector], axis=0)
 

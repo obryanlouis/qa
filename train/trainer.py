@@ -128,7 +128,7 @@ class Trainer:
             print("Applying gradients")
             apply_gradients_start_time = time.time()
             grads = average_gradients(tower_grads)
-            train_op = optimizer.apply_gradients(grads)
+            train_op = optimizer.apply_gradients(grads) if len(grads) > 0 else tf.no_op()
             iteration_num = tf.Variable(initial_value=1, trainable=False,
                 dtype=tf.int32)
             incr_iter = tf.assign(iteration_num, iteration_num + 1)
@@ -158,9 +158,8 @@ class Trainer:
             gradients_summary = tf.summary.scalar("gradients", global_norm)
             print("Time to apply gradients: %s"
                     % (time.time() - apply_gradients_start_time))
-            print("Time to create model and compute gradients: %s"
+            print("Time to create model, compute gradients, and apply them: %s"
                     % (time.time() - create_model_start_time))
-
 
             self._maybe_restore_model()
             maybe_print_model_parameters(self.options)
@@ -170,7 +169,8 @@ class Trainer:
             iterations_per_epoch = self.sq_dataset.train_ds.get_size() / self.options.batch_size
             total_iter = int(self.options.epochs * iterations_per_epoch)
             start_time = time.time()
-            print("Current iteration: %d, Total iterations: %d" % (current_iter, total_iter))
+            print("Current iteration: %d, Total iterations: %d"
+                  % (current_iter, total_iter))
             start_iter = current_iter
             i = current_iter - 1
             while True:

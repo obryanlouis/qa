@@ -21,8 +21,6 @@ def decode_answer_pointer_boundary(options, batch_size, keep_prob, spans,
     loss = tf.constant(0.0, dtype=tf.float32)
     start_span_probs = None
     end_span_probs = None
-    max_len = tf.reshape(tf.tile(tf.constant([sq_dataset.get_max_ctx_len() - 1]),
-                [batch_size]), [batch_size])
     VHr = multiply_3d_and_2d_tensor(attention_outputs, V) # size = [batch_size, max_ctx_length, rnn_size]
     v_reshaped = tf.reshape(v, [1, -1, 1]) # size = [1, rnn_size, 1]
     for z in range(2):
@@ -41,7 +39,7 @@ def decode_answer_pointer_boundary(options, batch_size, keep_prob, spans,
             start_span_probs = beta
         else:
             end_span_probs = beta
-        labels = tf.reshape(tf.minimum(spans[:,z], max_len), [batch_size])
+        labels = tf.reshape(tf.minimum(spans[:,z], sq_dataset.get_max_ctx_len()), [batch_size])
         loss += tf.reduce_sum(
                 tf.nn.sparse_softmax_cross_entropy_with_logits(
                     labels=labels, logits=logits)) \
