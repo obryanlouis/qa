@@ -11,6 +11,7 @@ DATA_INDEX_KEY = "data_index"
 class TfIteratorWrapper():
     def __init__(self, ctx_iterator, qst_iterator, spn_iterator,
             data_index_iterator):
+        print("Creating TensorFlow Datasets and iterators")
         self.ctx = ctx_iterator
         self.qst = qst_iterator
         self.spn = spn_iterator
@@ -61,6 +62,7 @@ class TfDataset():
             .repeat()
 
     def create_tf_iterators(self):
-        next_elem = self.iterator.get_next()
-        return TfIteratorWrapper(next_elem[CTX_KEY], next_elem[QST_KEY],
-            next_elem[SPN_KEY], next_elem[DATA_INDEX_KEY])
+        with tf.device("/cpu:0"):
+            next_elem = self.iterator.get_next()
+            return TfIteratorWrapper(next_elem[CTX_KEY], next_elem[QST_KEY],
+                next_elem[SPN_KEY], next_elem[DATA_INDEX_KEY])

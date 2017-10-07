@@ -7,7 +7,9 @@ import os
 import preprocessing.constants as constants
 import time
 
-SAVE_FILE_NAMES = [
+from sets import Set
+
+SAVE_FILE_NAMES = Set([
     # Save the context/question/span numpy files
     constants.TRAIN_CONTEXT_FILE,
     constants.TRAIN_QUESTION_FILE,
@@ -22,7 +24,7 @@ SAVE_FILE_NAMES = [
     constants.DEV_FULL_TEXT_TOKENS_FILE,
     # Save the vocab
     constants.VOCAB_FILE,
-]
+])
 
 def already_uploaded_s3_files(options, bucket):
     key_prefix = os.path.join(options.s3_data_folder_name)
@@ -70,9 +72,13 @@ def maybe_download_data_files(options):
     key_prefix = os.path.join(options.s3_data_folder_name)
     num_files = 0
     for obj in bucket.objects.filter(Prefix=key_prefix):
-        num_files += 1
         file_name = os.path.basename(obj.key)
         full_file_name = os.path.join(options.data_dir, file_name)
+        if os.path.exists(full_file_name):
+            print("Already downloaded file %s. Not downloading again."
+                  % file_name)
+            continue
+        num_files += 1
         print("[S3] Downloading key", obj.key, "to file", full_file_name)
         bucket.download_file(obj.key, full_file_name)
     print("Time to download %d data files: %s" % (num_files,

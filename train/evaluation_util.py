@@ -67,12 +67,25 @@ def _eval(session, towers, squad_dataset, options, tf_dataset, is_train, limit_s
         feed_dict = get_feed_dict(squad_dataset, tf_dataset, options, towers, is_train=is_train)
         towers_spans_values = session.run(run_ops, feed_dict=feed_dict)
 
-        for z in range(len(towers)):
+        num_towers = len(towers)
+        for z in range(num_towers):
             start_spans, end_spans, gnd_spans, data_indices = \
-                towers_spans_values[2 * z], towers_spans_values[2 * z + 1], \
-                towers_spans_values[2 * z + 2], towers_spans_values[2 * z + 3]
+                towers_spans_values[4 * z], \
+                towers_spans_values[4 * z + 1], \
+                towers_spans_values[4 * z + 2], \
+                towers_spans_values[4 * z + 3]
+            if start_spans.shape != end_spans.shape:
+                print("start_spans shape", start_spans.shape,
+                      "end_spans shape", end_spans.shape,
+                      "gnd_spans shape", gnd_spans.shape,
+                      "data_indices shape", data_indices.shape)
+                print("start_spans", start_spans)
+                print("end_spans", end_spans)
+                print("gnd_spans", gnd_spans)
+                print("data_indices", gnd_spans)
             assert start_spans.shape == end_spans.shape
             assert start_spans.shape[0] == gnd_spans.shape[0]
+            assert start_spans.shape[0] == data_indices.shape[0]
             for zz in range(start_spans.shape[0]):
                 start = start_spans[zz]
                 end = end_spans[zz]
