@@ -25,21 +25,22 @@ class Rnet(BaseModel):
                 self.options, ctx_dropout, qst_dropout, self.keep_prob)
         # Step 2. Run a bi-lstm over the passage with the question as the
         # attention.
-        ctx_attention = run_attention(self.options, passage_outputs,
-                2 * self.options.rnn_size, question_outputs,
+        ctx_attention = run_attention(self.sq_dataset, self.options,
+                passage_outputs, 2 * self.options.rnn_size, question_outputs,
                 2 * self.options.rnn_size, "attention_birnn", self.batch_size,
-                self.options.max_qst_length, self.keep_prob, num_rnn_layers=1)
+                self.sq_dataset.get_max_qst_len(), self.keep_prob, num_rnn_layers=1)
         # Step 3. Run self-matching attention of the previous result over
         # itself.
-        ctx_attention = run_attention(self.options, ctx_attention,
-                2 * self.options.rnn_size, ctx_attention,
+        ctx_attention = run_attention(self.sq_dataset, self.options,
+                ctx_attention, 2 * self.options.rnn_size, ctx_attention,
                 2 * self.options.rnn_size, "self_matching_attention", self.batch_size,
-                self.options.max_ctx_length, self.keep_prob, num_rnn_layers=1)
+                self.sq_dataset.get_max_ctx_len(), self.keep_prob, num_rnn_layers=1)
         # Step 3. Create the answer output layer using answer-pointer boundary
         # decoding.
         self.loss, self.start_span_probs, self.end_span_probs = \
             decode_answer_pointer_boundary(self.options, self.batch_size,
-                self.keep_prob, self.spn_iterator, ctx_attention)
+                self.keep_prob, self.spn_iterator, ctx_attention,
+                self.sq_dataset)
 
     def get_loss_op(self):
         return self.loss

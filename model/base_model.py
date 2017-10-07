@@ -4,12 +4,13 @@ import tensorflow as tf
 from abc import ABCMeta, abstractmethod
 
 class BaseModel:
-    def __init__(self, options, embeddings, tf_iterators):
+    def __init__(self, options, tf_iterators, sq_dataset):
+        self.sq_dataset = sq_dataset
         self.options = options
-        self.embeddings = embeddings
+        self.embeddings = sq_dataset.embeddings
         self.batch_size = None
-        self.num_words = embeddings.shape[0]
-        self.word_dim = embeddings.shape[1]
+        self.num_words = self.embeddings.shape[0]
+        self.word_dim = self.embeddings.shape[1]
         self.embedding_placeholder = None
         self.keep_prob = None
         self.ctx_iterator = tf_iterators.ctx

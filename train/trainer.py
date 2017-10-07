@@ -40,9 +40,9 @@ class Trainer:
     def _add_tower_and_compute_loss(self, scope, iterators):
         # NOTE: This is so slow. Is there a way in tensorflow to just copy the
         # graph instead of recreating and recompiling the whole thing?
-        print("Creating 1 tower in model")
+        print("Creating tower in model")
         tower = MODEL_TYPES[self.options.model_type](self.options,
-                self.sq_dataset.embeddings, iterators)
+                iterators, self.sq_dataset)
         tower.setup()
         print("Tower created")
         self.towers.append(tower)

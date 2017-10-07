@@ -16,7 +16,7 @@ def readable_eta(eta):
 def maybe_print_model_parameters(options):
     """Debugging function to print the model parameters.
     """
-    if not options.debug:
+    if not options.verbose_logging:
         return
     total_parameters = 0
     params_list = []

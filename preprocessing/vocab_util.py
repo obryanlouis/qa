@@ -11,6 +11,10 @@ class Vocab:
         self._position_to_word = position_to_word
         self.PAD_ID = len(word_to_position)
         self.UNK_ID = self.PAD_ID + 1
+    def get_vocab_size_without_pad_or_unk(self):
+        return len(self._word_to_position)
+    def get_vocab_size_including_pad_and_unk(self):
+        return len(self._word_to_position) + 2
     def get_id_for_word(self, word):
         if word in self._word_to_position:
             return self._word_to_position[word]

@@ -3,14 +3,22 @@
 
 import numpy as np
 
-DEBUG_DATA_SIZE = 20
+NUM_SAMPLES = 13
+CTX_LEN = 19
+QST_LEN = 17
 
 class TestDataset:
-    def __init__(self, text_tokens, contexts, questions, spans, options):
+    def __init__(self, text_tokens, vocab):
         self.text_tokens = text_tokens
-        self.ctx = contexts[:DEBUG_DATA_SIZE, :options.max_ctx_length]
-        self.qst = questions[:DEBUG_DATA_SIZE, :options.max_qst_length]
-        self.spn = spans[:DEBUG_DATA_SIZE,:]
+        vocab_size = vocab.get_vocab_size_including_pad_and_unk()
+        self.ctx = np.random.randint(0, vocab_size, size=(NUM_SAMPLES, CTX_LEN))
+        self.qst = np.random.randint(0, vocab_size, size=(NUM_SAMPLES, QST_LEN))
+        self.spn = np.zeros((NUM_SAMPLES, 2), dtype=np.int32)
+        for z in range(NUM_SAMPLES):
+            spns = sorted([np.random.randint(0, CTX_LEN),
+                           np.random.randint(0, CTX_LEN)])
+            self.spn[z, 0] = spns[0]
+            self.spn[z, 1] = spns[1]
         self.data_index = np.arange(self.ctx.shape[0])
 
     def get_sentence(self, ctx_id, start_idx, end_idx):

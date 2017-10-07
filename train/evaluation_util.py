@@ -96,7 +96,7 @@ def _eval(session, towers, squad_dataset, options, tf_dataset, is_train, limit_s
                 gnd_start = gnd_spans[zz, 0]
                 gnd_end = gnd_spans[zz, 1]
                 ground_truths.append(dataset.get_sentence(example_index, gnd_start, gnd_end))
-    if options.debug:
+    if options.verbose_logging:
         print("text_predictions", str(text_predictions).encode("utf-8"),
               "ground_truths", str(ground_truths).encode("utf-8"))
     exact_match = _avg_over_list(_exact_match_score, text_predictions,

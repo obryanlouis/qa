@@ -8,9 +8,10 @@ import preprocessing.constants as constants
 
 from datasets.dataset import Dataset
 from datasets.file_util import *
+from datasets.squad_data_base import SquadDataBase
 from preprocessing.vocab_util import get_vocab
 
-class SquadData:
+class SquadData(SquadDataBase):
     def __init__(self, options):
         data_dir = options.data_dir
         self.data_dir = data_dir

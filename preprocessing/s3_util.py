@@ -7,9 +7,7 @@ import os
 import preprocessing.constants as constants
 import time
 
-from sets import Set
-
-SAVE_FILE_NAMES = Set([
+SAVE_FILE_NAMES = {
     # Save the context/question/span numpy files
     constants.TRAIN_CONTEXT_FILE,
     constants.TRAIN_QUESTION_FILE,
@@ -24,7 +22,7 @@ SAVE_FILE_NAMES = Set([
     constants.DEV_FULL_TEXT_TOKENS_FILE,
     # Save the vocab
     constants.VOCAB_FILE,
-])
+}
 
 def already_uploaded_s3_files(options, bucket):
     key_prefix = os.path.join(options.s3_data_folder_name)
