@@ -1,6 +1,14 @@
 """Define flags and provide a function to get options from the flags.
 """
 
+# If running training, you will likely want to consider these flags:
+# - debug (False)
+# - use_s3 (True)
+# - num_gpus
+# - batch_size (a good start: 20 per 4GB GPU memory)
+# - model_type (see model/model_types.py)
+# - experiment_name
+
 import tensorflow as tf
 
 f = tf.app.flags
@@ -8,9 +16,10 @@ f.DEFINE_integer("max_ctx_length", 600,
         "Max passage length to keep. Content longer will be trimmed.")
 f.DEFINE_integer("max_qst_length", 30,
         "Max question length to keep. Content longer will be trimmed.")
-f.DEFINE_string("model_type", "match_lstm", "Type of model to train.")
-f.DEFINE_boolean("debug", True, "Whether or not debugging is on.")
-f.DEFINE_string("experiment_name", "logistic_regression",
+f.DEFINE_string("model_type", "logistic_regression", "Type of model to train." +
+        "The model types are in models/model_types.py")
+f.DEFINE_boolean("debug", False, "Whether or not debugging is on.")
+f.DEFINE_string("experiment_name", "local",
         "Name of the experiment being run; different experiments will be " +
         "saved and loaded from different model files and can use different " +
         "model hyperparameters")
@@ -37,7 +46,7 @@ f.DEFINE_string("log_valid_every", 100, "Frequency (in iterations) to log " +
 f.DEFINE_integer("compute_accuracy_every", 200, "Frequency (in iterations) " +
         "to compute exact matach and f1 scores on the training and " +
         "validation data sets.")
-f.DEFINE_integer("save_every", 400, "Frequency (in iterations) to save the "
+f.DEFINE_integer("save_every", 1500, "Frequency (in iterations) to save the "
         "model.")
 f.DEFINE_boolean("use_s3", False,
         "Whether to use AWS S3 storage to save model checkpoints. " +
@@ -59,25 +68,29 @@ f.DEFINE_integer("num_evaluation_samples", 200, "Number of samples of the " +
         "datasets to take for partial exact match and f1 score evaluations." +
         "This is done since it can take a while to evaluate the model on the" +
         "whole dataset")
-f.DEFINE_integer("rnn_size", 50, "The dimension of rnn cells.")
+f.DEFINE_integer("rnn_size", 10, "The dimension of rnn cells.")
 f.DEFINE_integer("num_rnn_layers", 1, "The number of rnn layers to use in " +
         "a single multi-rnn cell.")
-f.DEFINE_float("dropout", 0.2, "The amount of dropout to use.")
+f.DEFINE_float("dropout", 0.0, "The amount of dropout to use.")
+f.DEFINE_integer("dataset_buffer_size", 100, "Size of the dataset buffer." +
+        "See the Tensorflow Dataset API for details.")
+f.DEFINE_boolean("use_fake_dataset", True, "Whether to use a synthetic" +
+        "dataset in order to debug the model.")
 
 def get_options_from_flags():
     flags = tf.app.flags.FLAGS
     if flags.debug:
-        flags.num_evaluation_samples = 10
-        flags.batch_size = 4
-        flags.max_ctx_length = 10
-        flags.max_qst_length = 8
+        flags.num_evaluation_samples = 32
+        flags.batch_size = 32
+#        flags.max_ctx_length = 10
+#        flags.max_qst_length = 8
         flags.clear_logs_before_training = True
         flags.log_loss = True
         flags.log_gradients = True
         flags.log_exact_match = True
         flags.log_f1_score = True
         flags.log_every = 1
-        flags.log_valid_every = 4
-        flags.compute_accuracy_every = 4
-        flags.save_every = 4
+        flags.log_valid_every = 10000
+        flags.compute_accuracy_every = 100
+        flags.save_every = 10000
     return flags

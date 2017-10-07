@@ -4,34 +4,26 @@
 import numpy as np
 import tensorflow as tf
 
-def get_feed_dict(squad_data, dataset, options, towers, is_train,
-        indices_per_tower=None):
+def get_feed_dict(squad_data, tf_dataset, options, towers, is_train):
     if len(towers) < 1:
         raise Exception("There are no models in the list of towers to train")
     examples_per_tower = int(options.batch_size / len(towers))
     feed_dict = {}
-    if indices_per_tower is None:
-        rng = np.arange(dataset.get_size())
-        rnd_choice = np.random.choice(rng, options.batch_size * len(towers))
-        indices_per_tower = np.array_split(rnd_choice, len(towers))
     for i in range(len(towers)):
         tower = towers[i]
-        twr_idx = indices_per_tower[i]
-        batch_ctx = np.reshape(dataset.ctx[twr_idx], (-1, options.max_ctx_length))
-        batch_qst = np.reshape(dataset.qst[twr_idx], (-1, options.max_qst_length))
-        batch_spn = np.reshape(dataset.spn[twr_idx], (-1, 2))
-        feed_dict[tower.get_contexts_placeholder()] = batch_ctx
-        feed_dict[tower.get_questions_placeholder()] = batch_qst
-        feed_dict[tower.get_spans_placeholder()] = batch_spn
         feed_dict[tower.get_embedding_placeholder()] = squad_data.embeddings
         feed_dict[tower.get_keep_prob_placeholder()] = 1 if not is_train else 1 - options.dropout
+    train_handle = tf_dataset.get_train_handle()
+    dev_handle = tf_dataset.get_dev_handle()
+    tf_handle = tf_dataset.get_iterator_handle()
+    feed_dict[tf_handle] = train_handle if is_train else dev_handle
     return feed_dict
 
-def get_train_feed_dict(squad_data, options, towers):
-    return get_feed_dict(squad_data, squad_data.train_ds, options, towers, is_train=True)
+def get_train_feed_dict(squad_data, tf_dataset, options, towers):
+    return get_feed_dict(squad_data, tf_dataset, options, towers, is_train=True)
 
-def get_dev_feed_dict(squad_data, options, towers):
-    return get_feed_dict(squad_data, squad_data.dev_ds, options, towers, is_train=False)
+def get_dev_feed_dict(squad_data, tf_dataset, options, towers):
+    return get_feed_dict(squad_data, tf_dataset, options, towers, is_train=False)
 
 def average_gradients(tower_grads):
   """Calculate the average gradient for each shared variable across all towers.

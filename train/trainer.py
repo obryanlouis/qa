@@ -7,10 +7,12 @@ import shutil
 import time
 
 from model.model_types import MODEL_TYPES
-from preprocessing.load_data import SquadData
+from datasets.squad_data import SquadData
+from datasets.test_data import TestData
 from train.evaluation_util import *
 from train.print_utils import *
 from train.s3_util import *
+from train.tf_dataset import *
 from train.train_util import *
 
 class Trainer:
@@ -18,7 +20,8 @@ class Trainer:
         self.options = options
         self.session = None
         self.towers = []
-        self.dataset = None
+        self.sq_dataset = None
+        self.tf_dataset = None
         self.saver = None
         self.train_writer = None
         self.val_writer = None
@@ -34,11 +37,14 @@ class Trainer:
         if self.options.model_type not in MODEL_TYPES:
             raise Exception("Model type %s not recognized. Must be in set %s." % (self.options.model_type, MODEL_TYPES.keys()))
 
-    def _add_tower_and_compute_loss(self, scope):
+    def _add_tower_and_compute_loss(self, scope, iterators):
         # NOTE: This is so slow. Is there a way in tensorflow to just copy the
         # graph instead of recreating and recompiling the whole thing?
-        tower = MODEL_TYPES[self.options.model_type](self.options, self.dataset.embeddings)
+        print("Creating 1 tower in model")
+        tower = MODEL_TYPES[self.options.model_type](self.options,
+                self.sq_dataset.embeddings, iterators)
         tower.setup()
+        print("Tower created")
         self.towers.append(tower)
         return tower.get_loss_op()
 
@@ -67,8 +73,13 @@ class Trainer:
         if not os.path.exists(self.options.checkpoint_dir):
             os.makedirs(self.options.checkpoint_dir)
 
-        self.dataset = SquadData(self.options)
+        if self.options.use_fake_dataset:
+            self.sq_dataset = TestData(self.options)
+        else:
+            self.sq_dataset = SquadData(self.options)
         with tf.Graph().as_default(), tf.device('/cpu:0'):
+            print("Creating TensorFlow dataset.")
+            self.tf_dataset = TfDataset(self.options, self.sq_dataset)
             self.session = tf.Session(config=tf.ConfigProto(
                         allow_soft_placement=True,
                         log_device_placement=False))
@@ -82,19 +93,40 @@ class Trainer:
                 learning_rate=self.options.learning_rate)
             loss = None
             create_model_start_time = time.time()
+            tower_creation_time = 0
+            gradient_computation_time = 0
+            print("Creating towers")
             with tf.variable_scope(tf.get_variable_scope()):
                 if self.options.num_gpus == 0:
-                    loss = self._add_tower_and_compute_loss("single_tower_scope")
+                    iterators = self.tf_dataset.create_tf_iterators()
+                    tower_start_time = time.time()
+                    loss = self._add_tower_and_compute_loss("single_tower_scope",
+                            iterators)
+                    tower_creation_time += (time.time() - tower_start_time)
+                    gradient_start_time = time.time()
                     tower_grads.append(optimizer.compute_gradients(loss))
+                    gradient_computation_time += (time.time() - gradient_start_time)
                 else:
                     for i in range(self.options.num_gpus):
                         with tf.device('/gpu:%d' % i):
                             with tf.name_scope('tower_%d' % i) as scope:
-                                loss = self._add_tower_and_compute_loss(scope)
+                                iterators = self.tf_dataset.create_tf_iterators()
+                                tower_start_time = time.time()
+                                loss = self._add_tower_and_compute_loss(scope,
+                                        iterators)
+                                tower_creation_time += (time.time() - tower_start_time)
                                 # This should make each tower share variables.
                                 tf.get_variable_scope().reuse_variables()
+                                gradient_start_time = time.time()
                                 grads = optimizer.compute_gradients(loss)
+                                gradient_computation_time += (time.time() - gradient_start_time)
                                 tower_grads.append(grads)
+            print("Time to create towers: %s" % tower_creation_time)
+            print("Time to compute gradients: %s" % gradient_computation_time)
+            print("Time to create towers and calculate gradients: %s"
+                  % (time.time() - create_model_start_time))
+            print("Applying gradients")
+            apply_gradients_start_time = time.time()
             grads = average_gradients(tower_grads)
             train_op = optimizer.apply_gradients(grads)
             iteration_num = tf.Variable(initial_value=1, trainable=False,
@@ -124,24 +156,30 @@ class Trainer:
             loss_summary = tf.summary.scalar("loss", loss)
             global_norm = tf.global_norm([grad for grad, var in grads])
             gradients_summary = tf.summary.scalar("gradients", global_norm)
+            print("Time to apply gradients: %s"
+                    % (time.time() - apply_gradients_start_time))
             print("Time to create model and compute gradients: %s"
                     % (time.time() - create_model_start_time))
 
 
             self._maybe_restore_model()
             maybe_print_model_parameters(self.options)
+            self.tf_dataset.setup_with_tf_session(self.session)
 
             current_iter = int(self.session.run(iteration_num))
-            iterations_per_epoch = self.dataset.train_ds.get_size() / self.options.batch_size
+            iterations_per_epoch = self.sq_dataset.train_ds.get_size() / self.options.batch_size
             total_iter = int(self.options.epochs * iterations_per_epoch)
             start_time = time.time()
             print("Current iteration: %d, Total iterations: %d" % (current_iter, total_iter))
             start_iter = current_iter
-            for i in range(current_iter, total_iter):
+            i = current_iter - 1
+            while True:
+                i += 1
                 _, loss_value, _, loss_summary_value, gradients_summary_value = \
                     self.session.run([train_op, loss, incr_iter,
-                        loss_summary, gradients_summary], feed_dict=get_train_feed_dict(
-                            self.dataset, self.options, self.towers))
+                        loss_summary, gradients_summary], feed_dict=
+                        get_train_feed_dict(self.sq_dataset, self.tf_dataset,
+                            self.options, self.towers))
                 elapsed = time.time() - start_time
                 time_per_iter = elapsed / (i - start_iter + 1)
                 time_per_epoch = time_per_iter * iterations_per_epoch
@@ -163,8 +201,8 @@ class Trainer:
                     loss_summary_value, gradients_summary_value, loss_value = \
                         self.session.run([
                             loss_summary, gradients_summary, loss], 
-                            feed_dict=get_dev_feed_dict(self.dataset,
-                                self.options, self.towers))
+                            feed_dict=get_dev_feed_dict(self.sq_dataset,
+                                self.tf_dataset, self.options, self.towers))
                     if self.options.log_gradients:
                         self.val_writer.add_summary(gradients_summary_value, i)
                     if self.options.log_loss:
@@ -174,10 +212,10 @@ class Trainer:
                           str(i) + "/" + str(total_iter),
                           "loss:", loss_value)
                 if i % self.options.compute_accuracy_every == 0:
-                    em, f1 = evaluate_train_partial(self.session, self.towers, self.dataset, self.options)
+                    em, f1 = evaluate_train_partial(self.session, self.towers, self.sq_dataset, self.options, self.tf_dataset)
                     print("")
                     print("[Train] F1", f1, "Em", em)
-                    val_em, val_f1 = evaluate_dev_partial(self.session, self.towers, self.dataset, self.options)
+                    val_em, val_f1 = evaluate_dev_partial(self.session, self.towers, self.sq_dataset, self.options, self.tf_dataset)
                     print("[Valid] F1", val_f1, "Em", val_em)
                     self._perform_summary_assignment(self.em, em)
                     self._perform_summary_assignment(self.f1, f1)

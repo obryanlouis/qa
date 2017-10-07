@@ -8,36 +8,36 @@ import string
 from collections import Counter
 from train.train_util import *
 
-def evaluate_train(session, towers, squad_dataset, options):
+def evaluate_train(session, towers, squad_dataset, options, tf_dataset):
     """Returns dev (exact match, f1)"""
-    em, f1, _, _ = _eval(session, towers, squad_dataset, squad_dataset.train_ds,
-            options, limit_samples=True)
+    em, f1, _, _ = _eval(session, towers, squad_dataset,
+            options, tf_dataset, is_train=True, limit_samples=True)
     return em, f1
 
-def evaluate_train_partial(session, towers, squad_dataset, options):
+def evaluate_train_partial(session, towers, squad_dataset, options, tf_dataset):
     """Returns dev (exact match, f1)"""
-    em, f1, _, _ = _eval(session, towers, squad_dataset, squad_dataset.train_ds,
-            options, limit_samples=True)
+    em, f1, _, _ = _eval(session, towers, squad_dataset,
+            options, tf_dataset, is_train=True, limit_samples=True)
     return em, f1
 
-def evaluate_dev_partial(session, towers, squad_dataset, options):
+def evaluate_dev_partial(session, towers, squad_dataset, options, tf_dataset):
     """Returns dev (exact match, f1)"""
-    em, f1, _, _ = _eval(session, towers, squad_dataset, squad_dataset.dev_ds,
-            options, limit_samples=True)
+    em, f1, _, _ = _eval(session, towers, squad_dataset,
+            options, tf_dataset, is_train=False, limit_samples=True)
     return em, f1
 
-def evaluate_dev(session, towers, squad_dataset, options):
+def evaluate_dev(session, towers, squad_dataset, options, tf_dataset):
     """Returns dev (exact match, f1)"""
-    em, f1, _, _ = _eval(session, towers, squad_dataset, squad_dataset.dev_ds,
-            options, limit_samples=False)
+    em, f1, _, _ = _eval(session, towers, squad_dataset,
+            options, tf_dataset, is_train=False, limit_samples=False)
     return em, f1
 
-def evaluate_dev_and_visualize(session, towers, squad_dataset, options):
+def evaluate_dev_and_visualize(session, towers, squad_dataset, options, tf_dataset):
     """Returns dev (exact match, f1) and also prints contexts, questions,
        ground truths, and predictions to files.
     """
-    em, f1, text_predictions, ground_truths = _eval(session, towers, dataset,
-            dataset.dev_ds, options, limit_samples=False)
+    em, f1, text_predictions, ground_truths = _eval(session, towers, squad_dataset,
+            options, tf_dataset, is_train=False, limit_samples=False)
     ctx_file = open(os.path.join(options.data_dir, "context.visualization.txt"))
     qst_file = open(os.path.join(options.data_dir, "question.visualization.txt"))
     gnd_span_file = open(os.path.join(options.data_dir, "ground_truth_spans.visualization.txt"))
@@ -50,48 +50,52 @@ def evaluate_dev_and_visualize(session, towers, squad_dataset, options):
         span_file.write(text_predictions[z] + "\n")
     return em, f1
 
-def _eval(session, towers, squad_dataset, dataset, options, limit_samples):
+def _eval(session, towers, squad_dataset, options, tf_dataset, is_train, limit_samples):
     text_predictions = []
     ground_truths = []
-    data_index = 0
-    effective_batch_size = len(towers) * options.batch_size
     run_ops = []
     for tower in towers:
         run_ops.append(tower.get_start_spans())
         run_ops.append(tower.get_end_spans())
+        run_ops.append(tower.get_gnd_truth_spans())
+        run_ops.append(tower.get_data_index_iterator())
+    dataset = squad_dataset.train_ds if is_train else squad_dataset.dev_ds
 
-    data_indices = np.arange(dataset.get_size())
-    if limit_samples:
-        data_indices = np.random.choice(np.arange(dataset.get_size()),
-                options.num_evaluation_samples)
-    data_size = data_indices.shape[0]
-
-    while data_index < data_size:
-        rng_start = data_index
-        rng_end = min(data_index + effective_batch_size, data_size)
-        batch_indices = data_indices[rng_start: rng_end]
-        indices_per_tower = np.array_split(batch_indices, len(towers))
-        feed_dict = get_feed_dict(squad_dataset, dataset, options, towers,
-            is_train=False, indices_per_tower=indices_per_tower)
-
+    num_samples = dataset.get_size() if not limit_samples else options.num_evaluation_samples
+    num_batches = max(1, int(num_samples / options.batch_size)) # close enough
+    for _ in range(num_batches):
+        feed_dict = get_feed_dict(squad_dataset, tf_dataset, options, towers, is_train=is_train)
         towers_spans_values = session.run(run_ops, feed_dict=feed_dict)
-        sub_batch_index = 0
-        for z in range(len(towers)):
-            tower_indices = indices_per_tower[z]
-            start_spans, end_spans = \
-                towers_spans_values[2 * z], towers_spans_values[2 * z + 1]
-            for zz in range(tower_indices.shape[0]):
+
+        num_towers = len(towers)
+        for z in range(num_towers):
+            start_spans, end_spans, gnd_spans, data_indices = \
+                towers_spans_values[4 * z], \
+                towers_spans_values[4 * z + 1], \
+                towers_spans_values[4 * z + 2], \
+                towers_spans_values[4 * z + 3]
+            if start_spans.shape != end_spans.shape:
+                print("start_spans shape", start_spans.shape,
+                      "end_spans shape", end_spans.shape,
+                      "gnd_spans shape", gnd_spans.shape,
+                      "data_indices shape", data_indices.shape)
+                print("start_spans", start_spans)
+                print("end_spans", end_spans)
+                print("gnd_spans", gnd_spans)
+                print("data_indices", gnd_spans)
+            assert start_spans.shape == end_spans.shape
+            assert start_spans.shape[0] == gnd_spans.shape[0]
+            assert start_spans.shape[0] == data_indices.shape[0]
+            for zz in range(start_spans.shape[0]):
                 start = start_spans[zz]
                 end = end_spans[zz]
-                example_index = batch_indices[sub_batch_index]
+                example_index = data_indices[zz]
                 # These need to be the original sentences from the training/dev
                 # sets, without any padding/unique word replacements.
                 text_predictions.append(dataset.get_sentence(example_index, start, end))
-                gnd_start = dataset.spn[example_index, 0]
-                gnd_end = dataset.spn[example_index, 1]
+                gnd_start = gnd_spans[zz, 0]
+                gnd_end = gnd_spans[zz, 1]
                 ground_truths.append(dataset.get_sentence(example_index, gnd_start, gnd_end))
-                sub_batch_index += 1
-        data_index += effective_batch_size
     if options.debug:
         print("text_predictions", str(text_predictions).encode("utf-8"),
               "ground_truths", str(ground_truths).encode("utf-8"))

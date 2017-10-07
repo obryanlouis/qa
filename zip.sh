@@ -1,3 +1,2 @@
 rm -f files.tar.gz
-tar -czvf files.tar.gz model/*.py preprocessing/*.py train/*.py setup.py \
-    perform_training.py flags.py
+tar -czvf files.tar.gz model/*.py preprocessing/*.py train/*.py datasets/*.py *.py
