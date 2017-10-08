@@ -38,8 +38,9 @@ class Trainer:
             raise Exception("Model type %s not recognized. Must be in set %s." % (self.options.model_type, MODEL_TYPES.keys()))
 
     def _add_tower_and_compute_loss(self, scope, iterators):
-        # NOTE: This is so slow. Is there a way in tensorflow to just copy the
-        # graph instead of recreating and recompiling the whole thing?
+        # NOTE: Is there a way in tensorflow to just copy the
+        # graph instead of recreating and recompiling the whole thing? This
+        # may be useful in the case of multiple GPUs or ensemble evaluation.
         print("Creating tower in model")
         tower = MODEL_TYPES[self.options.model_type](self.options,
                 iterators, self.sq_dataset)
@@ -79,7 +80,10 @@ class Trainer:
             self.sq_dataset = SquadData(self.options)
         with tf.Graph().as_default(), tf.device('/cpu:0'):
             print("Creating TensorFlow dataset.")
+            create_tf_dataset_start = time.time()
             self.tf_dataset = TfDataset(self.options, self.sq_dataset)
+            print("Time to create TensorFlow dataset: %s"
+                  % (time.time() - create_tf_dataset_start))
             self.session = tf.Session(config=tf.ConfigProto(
                         allow_soft_placement=True,
                         log_device_placement=False))
@@ -104,7 +108,10 @@ class Trainer:
                             iterators)
                     tower_creation_time += (time.time() - tower_start_time)
                     gradient_start_time = time.time()
-                    tower_grads.append(optimizer.compute_gradients(loss))
+                    # Aggregation_method=2 is slightly slower, but
+                    # allows training larger models.
+                    tower_grads.append(optimizer.compute_gradients(loss,
+                                aggregation_method=2))
                     gradient_computation_time += (time.time() - gradient_start_time)
                 else:
                     for i in range(self.options.num_gpus):
@@ -118,7 +125,10 @@ class Trainer:
                                 # This should make each tower share variables.
                                 tf.get_variable_scope().reuse_variables()
                                 gradient_start_time = time.time()
-                                grads = optimizer.compute_gradients(loss)
+                                # Aggregation_method=2 is slightly slower, but
+                                # allows training larger models.
+                                grads = optimizer.compute_gradients(loss,
+                                        aggregation_method=2)
                                 gradient_computation_time += (time.time() - gradient_start_time)
                                 tower_grads.append(grads)
             print("Time to create towers: %s" % tower_creation_time)
@@ -127,8 +137,15 @@ class Trainer:
                   % (time.time() - create_model_start_time))
             print("Applying gradients")
             apply_gradients_start_time = time.time()
-            grads = average_gradients(tower_grads)
-            train_op = optimizer.apply_gradients(grads) if len(grads) > 0 else tf.no_op()
+            train_op = None
+            global_norm = None
+            if self.options.model_type == "debug":
+                train_op = tf.no_op()
+                global_norm = tf.constant(0.0, dtype=tf.float32)
+            else:
+                grads, variables = zip(*average_gradients(tower_grads))
+                grads, global_norm = tf.clip_by_global_norm(grads, self.options.max_global_norm)
+                train_op = optimizer.apply_gradients(zip(grads, variables))
             iteration_num = tf.Variable(initial_value=1, trainable=False,
                 dtype=tf.int32)
             incr_iter = tf.assign(iteration_num, iteration_num + 1)
@@ -154,7 +171,6 @@ class Trainer:
                 assignment_dict["placeholder"] = placeholder
                 assignment_dict["assign_op"] = tf.assign(summary, placeholder)
             loss_summary = tf.summary.scalar("loss", loss)
-            global_norm = tf.global_norm([grad for grad, var in grads])
             gradients_summary = tf.summary.scalar("gradients", global_norm)
             print("Time to apply gradients: %s"
                     % (time.time() - apply_gradients_start_time))
@@ -175,9 +191,10 @@ class Trainer:
             i = current_iter - 1
             while True:
                 i += 1
-                _, loss_value, _, loss_summary_value, gradients_summary_value = \
+                _, loss_value, _, loss_summary_value, \
+                    gradients_summary_value, norm_value = \
                     self.session.run([train_op, loss, incr_iter,
-                        loss_summary, gradients_summary], feed_dict=
+                        loss_summary, gradients_summary, global_norm], feed_dict=
                         get_train_feed_dict(self.sq_dataset, self.tf_dataset,
                             self.options, self.towers))
                 elapsed = time.time() - start_time
@@ -188,8 +205,8 @@ class Trainer:
                 print("iteration:", str(i) + "/" + str(total_iter),
                         "percent done:", 100.0 * float(i) / float(total_iter), 
                         "loss:", loss_value,
-                        "Seconds elapsed", elapsed,
                         "Sec/iter", time_per_iter, 
+                        "Norm", norm_value,
                         "time/epoch", readable_time(time_per_epoch), 
                         readable_eta(eta), end="\r")
                 if i % self.options.log_every == 0:

@@ -14,6 +14,7 @@ def main(_):
     options.num_gpus = 1 # Update as needed
     options.batch_size = 120
     options.use_fake_dataset = False
+    options.verbose_logging = False
     maybe_download_data_files(options)
     Trainer(options).train()
 

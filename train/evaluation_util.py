@@ -68,12 +68,13 @@ def _eval(session, towers, squad_dataset, options, tf_dataset, is_train, limit_s
         towers_spans_values = session.run(run_ops, feed_dict=feed_dict)
 
         num_towers = len(towers)
+        items_per_tower = int(len(run_ops) / num_towers)
         for z in range(num_towers):
             start_spans, end_spans, gnd_spans, data_indices = \
-                towers_spans_values[4 * z], \
-                towers_spans_values[4 * z + 1], \
-                towers_spans_values[4 * z + 2], \
-                towers_spans_values[4 * z + 3]
+                towers_spans_values[items_per_tower * z], \
+                towers_spans_values[items_per_tower * z + 1], \
+                towers_spans_values[items_per_tower * z + 2], \
+                towers_spans_values[items_per_tower * z + 3],
             if start_spans.shape != end_spans.shape:
                 print("start_spans shape", start_spans.shape,
                       "end_spans shape", end_spans.shape,

@@ -57,7 +57,8 @@ class DataParser():
             text_tokens.append(ctx_word_list)
             for zz in range(len(tok_context)):
                 ctx_word = tok_context[zz]["word"]
-                ctx_list.append(self.vocab.get_id_for_word(ctx_word))
+                vocab_id = self.vocab.get_id_for_word(ctx_word)
+                ctx_list.append(vocab_id)
                 ctx_word_list.append(ctx_word)
             qst_list = []
             list_questions.append(qst_list)

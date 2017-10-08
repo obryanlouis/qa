@@ -9,7 +9,8 @@ class Vocab:
     def __init__(self, word_to_position, position_to_word):
         self._word_to_position = word_to_position
         self._position_to_word = position_to_word
-        self.PAD_ID = len(word_to_position)
+        max_id = max(position_to_word.keys())
+        self.PAD_ID = max_id + 1
         self.UNK_ID = self.PAD_ID + 1
     def get_vocab_size_without_pad_or_unk(self):
         return len(self._word_to_position)

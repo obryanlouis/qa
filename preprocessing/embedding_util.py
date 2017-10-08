@@ -29,9 +29,9 @@ def split_vocab_and_embedding(data_dir):
     i_file = open(input_file, "r", encoding="utf-8")
     i = 0
     for line in i_file:
-        idx = line.index(" ") + 1
+        idx = line.index(" ")
         vocab_o_file.write(line[:idx] + "\n")
-        embedding[i] = np.fromstring(line[idx:], dtype=np.float32, sep=' ')
+        embedding[i] = np.fromstring(line[idx + 1:], dtype=np.float32, sep=' ')
         i += 1
         if i % 10000 == 0 or i == num_lines:
             print("Processed %d of %d (%f percent done)" % (i, num_lines, 100 * float(i) / float(num_lines)), end="\r")
