@@ -4,7 +4,7 @@
 import tensorflow as tf
 
 from abc import ABCMeta, abstractmethod
-from model.encoding_util import *
+from model.input_util import *
 
 class BaseModel:
     def __init__(self, options, tf_iterators, sq_dataset):
