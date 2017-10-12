@@ -14,6 +14,16 @@ class DebugModel(BaseModel):
     def get_loss_op(self):
         return self.loss
 
+    def get_start_span_probs(self):
+        return tf.one_hot(self.spn_iterator[:,0],
+                depth=self.sq_dataset.get_max_ctx_len(),
+                dtype=tf.float32)
+
+    def get_end_span_probs(self):
+        return tf.one_hot(self.spn_iterator[:,1],
+                depth=self.sq_dataset.get_max_ctx_len(),
+                dtype=tf.float32)
+
     def get_start_spans(self):
         return self.spn_iterator[:,0]
 

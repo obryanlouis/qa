@@ -12,9 +12,13 @@ SAVE_FILE_NAMES = {
     constants.TRAIN_CONTEXT_FILE,
     constants.TRAIN_QUESTION_FILE,
     constants.TRAIN_SPAN_FILE,
+    constants.TRAIN_WORD_IN_QUESTION_FILE,
+    constants.TRAIN_WORD_IN_CONTEXT_FILE,
     constants.DEV_CONTEXT_FILE,
     constants.DEV_QUESTION_FILE,
     constants.DEV_SPAN_FILE,
+    constants.DEV_WORD_IN_QUESTION_FILE,
+    constants.DEV_WORD_IN_CONTEXT_FILE,
     # Save the word vectors
     constants.EMBEDDING_FILE,
     # Save the text tokens

@@ -1,4 +1,4 @@
-"""Defines a small debug data set. Models should get 100% on it.
+"""Defines a small debug data set. Models should get nearly 100% on it.
 """
 
 import numpy as np
@@ -24,3 +24,4 @@ class TestData(SquadDataBase):
         self.dev_ds = self.train_ds
         vocab_size = self.vocab.get_vocab_size_without_pad_or_unk()
         self.embeddings = np.random.uniform(-1.0, 1.0, size=(vocab_size, WORD_DIM))
+        self.word_vec_size = WORD_DIM

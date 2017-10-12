@@ -23,8 +23,8 @@ class DataParser():
         self.nlp = None
 
     def _maybe_add_sample(self, tok_context, tok_question, qa,
-            ctx_offset_dict, ctx_end_offset_dict, list_contexts,
-            list_questions, spans, num_values, text_tokens,
+            ctx_offset_dict, ctx_end_offset_dict, list_contexts, list_word_in_question,
+            list_questions, list_word_in_context, spans, num_values, text_tokens,
             allow_approximation=False):
         for answer in qa["answers"]:
             answer_start = answer["answer_start"]
@@ -55,16 +55,25 @@ class DataParser():
             list_contexts.append(ctx_list)
             ctx_word_list = []
             text_tokens.append(ctx_word_list)
+            ctx_word_ids = set()
+            qst_word_ids = set()
             for zz in range(len(tok_context)):
                 ctx_word = tok_context[zz]["word"]
                 vocab_id = self.vocab.get_id_for_word(ctx_word)
                 ctx_list.append(vocab_id)
                 ctx_word_list.append(ctx_word)
+                ctx_word_ids.add(vocab_id)
             qst_list = []
             list_questions.append(qst_list)
             for zz in range(len(tok_question)):
                 question_word = tok_question[zz]["word"]
+                word_id = self.vocab.get_id_for_word(question_word)
                 qst_list.append(self.vocab.get_id_for_word(question_word))
+                qst_word_ids.add(word_id)
+            word_in_question_list = [1 if word_id in qst_word_ids else 0 for word_id in ctx_list]
+            word_in_context_list = [1 if word_id in ctx_word_ids else 0 for word_id in qst_list]
+            list_word_in_question.append(word_in_question_list)
+            list_word_in_context.append(word_in_context_list)
             self.value_idx += 1
             print("Value", self.value_idx, "of", num_values, "percent done", 100 * float(self.value_idx) / float(num_values), end="\r")
             return True
@@ -79,9 +88,13 @@ class DataParser():
         return num_values
 
     def _create_train_data_internal(self, data_file):
-        """Returns (contexts, questions, spans)
+        """Returns (contexts, word_in_question, questions, word_in_context, spans)
             contexts: list of lists of integer word ids
+            word_in_question: list of lists of booleans indicating whether each
+                word in the context is present in the question
             questions: list of lists of integer word ids
+            word_in_context: list of lists of booleans indicating whether each
+                word in the question is present in the context
             spans: numpy array of shape (num_samples, 2)
         """
         filename = os.path.join(self.data_dir, data_file)
@@ -92,7 +105,9 @@ class DataParser():
             num_values = self._get_num_data_values(dataset)
             spans = np.zeros((num_values, 2), dtype=np.int32)
             list_contexts = []
+            list_word_in_question = []
             list_questions = []
+            list_word_in_context = []
             text_tokens = []
             self.value_idx = 0
             for article in dataset:
@@ -115,14 +130,14 @@ class DataParser():
                         found_answer_in_context = False
                         # Use the first answer that is found exactly in the context.
                         found_answer_in_context = self._maybe_add_sample(tok_context, tok_question, qa, ctx_offset_dict,
-                                ctx_end_offset_dict, list_contexts, list_questions,
+                                ctx_end_offset_dict, list_contexts, list_word_in_question, list_questions, list_word_in_context,
                                 spans, num_values, text_tokens)
                         if not found_answer_in_context:
                             # The data seems to have some glitches.
                             # In the case that none of the answers were found exactly
                             # in the context, use an approximation.
                             found_answer_in_context = self._maybe_add_sample(tok_context, tok_question, qa, ctx_offset_dict,
-                                ctx_end_offset_dict, list_contexts, list_questions,
+                                ctx_end_offset_dict, list_contexts, list_word_in_question, list_questions, list_word_in_context,
                                 spans, num_values, text_tokens, allow_approximation=True)
                         if not found_answer_in_context:
                             raise Exception(
@@ -133,7 +148,10 @@ class DataParser():
                                   "Tok context", json.dumps(tok_context, indent=4, sort_keys=True))
             print("")
             spans = spans[:self.value_idx]
-            return list_contexts, list_questions, spans, text_tokens
+            return list_contexts, list_word_in_question, list_questions, list_word_in_context, spans, text_tokens
+
+    def _create_padded_array(self, list_of_py_arrays, max_len, pad_value):
+        return [py_arr + [pad_value] * (max_len - len(py_arr)) for py_arr in list_of_py_arrays]
 
     def create_train_data(self):
         full_train_text_tokens_file_name = os.path.join(self.data_dir, constants.TRAIN_FULL_TEXT_TOKENS_FILE)
@@ -144,6 +162,12 @@ class DataParser():
         full_train_ctx_file_name = os.path.join(self.data_dir, constants.TRAIN_CONTEXT_FILE)
         full_dev_span_file_name = os.path.join(self.data_dir, constants.DEV_SPAN_FILE)
         full_train_span_file_name = os.path.join(self.data_dir, constants.TRAIN_SPAN_FILE)
+
+        full_train_word_in_question = os.path.join(self.data_dir, constants.TRAIN_WORD_IN_QUESTION_FILE)
+        full_dev_word_in_question = os.path.join(self.data_dir, constants.DEV_WORD_IN_QUESTION_FILE)
+        full_train_word_in_context = os.path.join(self.data_dir, constants.TRAIN_WORD_IN_CONTEXT_FILE)
+        full_dev_word_in_context = os.path.join(self.data_dir, constants.DEV_WORD_IN_CONTEXT_FILE)
+
         file_names = [
             full_train_text_tokens_file_name,
             full_dev_text_tokens_file_name,
@@ -152,7 +176,11 @@ class DataParser():
             full_dev_ctx_file_name,
             full_train_ctx_file_name,
             full_dev_span_file_name,
-            full_train_span_file_name ]
+            full_train_span_file_name,
+            full_train_word_in_question,
+            full_dev_word_in_question,
+            full_train_word_in_context,
+            full_dev_word_in_context ]
         if all([os.path.exists(filename) for filename in file_names]):
             print("Context, question, and span files already exist. Not creating data again.")
             return
@@ -163,10 +191,12 @@ class DataParser():
         self.nlp = StanfordCoreNlpCommunication(self.data_dir)
         self.nlp.start_server()
         print("Getting TRAIN dataset")
-        train_ctx_list, train_qst_list, train_spans_np_arr, train_text_tokens = \
+        train_ctx_list, train_word_in_question, train_qst_list, \
+            train_word_in_context, train_spans_np_arr, train_text_tokens = \
             self._create_train_data_internal(constants.TRAIN_SQUAD_FILE)
         print("Getting DEV dataset")
-        dev_ctx_list, dev_qst_list, dev_spans_np_arr, dev_text_tokens = \
+        dev_ctx_list, dev_word_in_question, dev_qst_list, \
+            dev_word_in_context, dev_spans_np_arr, dev_text_tokens = \
             self._create_train_data_internal(constants.DEV_SQUAD_FILE)
         self.nlp.stop_server()
 
@@ -186,18 +216,29 @@ class DataParser():
         max_context_length = max(
                 max([len(x) for x in train_ctx_list]),
                 max([len(x) for x in dev_ctx_list]))
-        train_ctx_np_arr = np.array([x + [self.vocab.PAD_ID] * (max_context_length - len(x)) for x in train_ctx_list], dtype=np.int32)
+        train_ctx_np_arr = np.array(self._create_padded_array(train_ctx_list, max_context_length, self.vocab.PAD_ID), dtype=np.int32)
         np.save(full_train_ctx_file_name, train_ctx_np_arr)
-        dev_ctx_np_arr = np.array([x + [self.vocab.PAD_ID] * (max_context_length - len(x)) for x in dev_ctx_list], dtype=np.int32)
+        dev_ctx_np_arr = np.array(self._create_padded_array(dev_ctx_list, max_context_length, self.vocab.PAD_ID), dtype=np.int32)
         np.save(full_dev_ctx_file_name, dev_ctx_np_arr)
 
         print("Saving question numpy arrays")
         max_question_length = max(
                 max([len(x) for x in train_qst_list]),
                 max([len(x) for x in dev_qst_list]))
-        train_qst_np_arr = np.array([x + [self.vocab.PAD_ID] * (max_question_length - len(x)) for x in train_qst_list], dtype=np.int32)
+        train_qst_np_arr = np.array(self._create_padded_array(train_qst_list, max_question_length, self.vocab.PAD_ID), dtype=np.int32)
         np.save(full_train_qst_file_name, train_qst_np_arr)
-        dev_qst_np_arr = np.array([x + [self.vocab.PAD_ID] * (max_question_length - len(x)) for x in dev_qst_list], dtype=np.int32)
+        dev_qst_np_arr = np.array(self._create_padded_array(dev_qst_list, max_question_length, self.vocab.PAD_ID), dtype=np.int32)
         np.save(full_dev_qst_file_name, dev_qst_np_arr)
+
+        print("Saving additional feature numpy arrays")
+        train_word_in_question_np_arr = np.array(self._create_padded_array(train_word_in_question, max_context_length, 0), dtype=np.float32)
+        np.save(full_train_word_in_question, train_word_in_question_np_arr)
+        train_word_in_context_np_arr = np.array(self._create_padded_array(train_word_in_context, max_question_length, 0), dtype=np.float32)
+        np.save(full_train_word_in_context, train_word_in_context_np_arr)
+
+        dev_word_in_question_np_arr = np.array(self._create_padded_array(dev_word_in_question, max_context_length, 0), dtype=np.float32)
+        np.save(full_dev_word_in_question, dev_word_in_question_np_arr)
+        dev_word_in_context_np_arr = np.array(self._create_padded_array(dev_word_in_context, max_question_length, 0), dtype=np.float32)
+        np.save(full_dev_word_in_context, dev_word_in_context_np_arr)
 
         print("Finished creating training data!")

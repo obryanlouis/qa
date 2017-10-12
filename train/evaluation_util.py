@@ -2,11 +2,9 @@
 """
 
 import os
-import re
-import string
 
-from collections import Counter
 from train.train_util import *
+from train.evaluation_functions import *
 
 def evaluate_train(session, towers, squad_dataset, options, tf_dataset):
     """Returns dev (exact match, f1)"""
@@ -55,8 +53,8 @@ def _eval(session, towers, squad_dataset, options, tf_dataset, is_train, limit_s
     ground_truths = []
     run_ops = []
     for tower in towers:
-        run_ops.append(tower.get_start_spans())
-        run_ops.append(tower.get_end_spans())
+        run_ops.append(tower.get_start_span_probs())
+        run_ops.append(tower.get_end_span_probs())
         run_ops.append(tower.get_gnd_truth_spans())
         run_ops.append(tower.get_data_index_iterator())
     dataset = squad_dataset.train_ds if is_train else squad_dataset.dev_ds
@@ -64,32 +62,32 @@ def _eval(session, towers, squad_dataset, options, tf_dataset, is_train, limit_s
     num_samples = dataset.get_size() if not limit_samples else options.num_evaluation_samples
     num_batches = max(1, int(num_samples / options.batch_size)) # close enough
     for _ in range(num_batches):
-        feed_dict = get_feed_dict(squad_dataset, tf_dataset, options, towers, is_train=is_train)
+        feed_dict = get_eval_feed_dict(squad_dataset, tf_dataset, options, towers, is_train=is_train)
         towers_spans_values = session.run(run_ops, feed_dict=feed_dict)
 
         num_towers = len(towers)
         items_per_tower = int(len(run_ops) / num_towers)
         for z in range(num_towers):
-            start_spans, end_spans, gnd_spans, data_indices = \
+            start_span_probs, end_span_probs, gnd_spans, data_indices = \
                 towers_spans_values[items_per_tower * z], \
                 towers_spans_values[items_per_tower * z + 1], \
                 towers_spans_values[items_per_tower * z + 2], \
                 towers_spans_values[items_per_tower * z + 3],
-            if start_spans.shape != end_spans.shape:
-                print("start_spans shape", start_spans.shape,
-                      "end_spans shape", end_spans.shape,
+            if start_span_probs.shape != end_span_probs.shape:
+                print("start_span_probs shape", start_span_probs.shape,
+                      "end_span_probs shape", end_span_probs.shape,
                       "gnd_spans shape", gnd_spans.shape,
                       "data_indices shape", data_indices.shape)
-                print("start_spans", start_spans)
-                print("end_spans", end_spans)
+                print("start_span_probs", start_span_probs)
+                print("end_span_probs", end_span_probs)
                 print("gnd_spans", gnd_spans)
                 print("data_indices", gnd_spans)
-            assert start_spans.shape == end_spans.shape
-            assert start_spans.shape[0] == gnd_spans.shape[0]
-            assert start_spans.shape[0] == data_indices.shape[0]
-            for zz in range(start_spans.shape[0]):
-                start = start_spans[zz]
-                end = end_spans[zz]
+            assert start_span_probs.shape == end_span_probs.shape
+            assert start_span_probs.shape[0] == gnd_spans.shape[0]
+            assert start_span_probs.shape[0] == data_indices.shape[0]
+            for zz in range(start_span_probs.shape[0]):
+                start, end = get_best_start_and_end(start_span_probs[zz],
+                        end_span_probs[zz], options)
                 example_index = data_indices[zz]
                 # These need to be the original sentences from the training/dev
                 # sets, without any padding/unique word replacements.
@@ -100,48 +98,7 @@ def _eval(session, towers, squad_dataset, options, tf_dataset, is_train, limit_s
     if options.verbose_logging:
         print("text_predictions", str(text_predictions).encode("utf-8"),
               "ground_truths", str(ground_truths).encode("utf-8"))
-    exact_match = _avg_over_list(_exact_match_score, text_predictions,
+    exact_match = avg_over_list(exact_match_score, text_predictions,
             ground_truths)
-    f1 = _avg_over_list(_f1_score, text_predictions, ground_truths)
+    f1 = avg_over_list(f1_score, text_predictions, ground_truths)
     return exact_match, f1, text_predictions, ground_truths
-
-def _avg_over_list(metric_fn, predictions, ground_truths):
-    avg_value = 0.0
-    for i in range(len(predictions)):
-        avg_value += metric_fn(predictions[i], ground_truths[i])
-    avg_value /= len(predictions)
-    return avg_value
-
-def _f1_score(prediction, ground_truth):
-    if prediction == ground_truth:
-        return 1
-    prediction_tokens = _normalize_answer(prediction).split()
-    ground_truth_tokens = _normalize_answer(ground_truth).split()
-    common = Counter(prediction_tokens) & Counter(ground_truth_tokens)
-    num_same = sum(common.values())
-    if num_same == 0:
-        return 0
-    precision = 1.0 * num_same / len(prediction_tokens)
-    recall = 1.0 * num_same / len(ground_truth_tokens)
-    f1 = (2 * precision * recall) / (precision + recall)
-    return f1
-
-def _exact_match_score(prediction, ground_truth):
-    return (_normalize_answer(prediction) == _normalize_answer(ground_truth))
-
-def _normalize_answer(s):
-    """Lower text and remove punctuation, articles and extra whitespace."""
-    def remove_articles(text):
-        return re.sub(r'\b(a|an|the)\b', ' ', text)
-
-    def white_space_fix(text):
-        return ' '.join(text.split())
-
-    def remove_punc(text):
-        exclude = set(string.punctuation)
-        return ''.join(ch for ch in text if ch not in exclude)
-
-    def lower(text):
-        return text.lower()
-
-    return white_space_fix(remove_articles(remove_punc(lower(s))))

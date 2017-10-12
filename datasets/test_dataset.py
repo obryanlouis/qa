@@ -20,6 +20,8 @@ class TestDataset:
             self.spn[z, 0] = spns[0]
             self.spn[z, 1] = spns[1]
         self.data_index = np.arange(self.ctx.shape[0])
+        self.word_in_question = np.random.randint(0, 2, size=(NUM_SAMPLES, CTX_LEN))
+        self.word_in_context = np.random.randint(0, 2, size=(NUM_SAMPLES, QST_LEN))
 
     def get_sentence(self, ctx_id, start_idx, end_idx):
         list_text_tokens = self.text_tokens[ctx_id]

@@ -69,6 +69,13 @@ f.DEFINE_boolean("use_fake_dataset", True, "Whether to use a synthetic" +
         "dataset in order to debug the model.")
 f.DEFINE_boolean("verbose_logging", True, "Whether to print verbose logs.")
 f.DEFINE_float("max_global_norm", 10.0, "Used for clipping norms.")
+f.DEFINE_integer("max_search_span_range", 15, "Maximum number of words in a " +
+        "predicted span; used to get a small boost in performance.")
+f.DEFINE_boolean("use_word_in_question_feature", True, "Whether to use the " +
+        "feature indicating for each word in the context whether it is in the" +
+        "question")
+f.DEFINE_boolean("use_word_similarity_feature", True, "Whether to use the" +
+        "feature indicating word similarity.")
 
 def get_options_from_flags():
     return tf.app.flags.FLAGS

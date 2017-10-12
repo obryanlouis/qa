@@ -23,6 +23,7 @@ def _get_or_create_attention_variables(options, attention_input, input_dim,
         attention_dim, scope, attention_length,
         num_rnn_layers, keep_prob):
     with tf.variable_scope(scope):
+        W_gate = tf.get_variable("W_gate", shape=[2 * input_dim, 2 * input_dim])
         Wq = tf.get_variable("Wq", shape=[attention_dim, options.rnn_size])
         Wp = tf.get_variable("Wp", shape=[input_dim, options.rnn_size])
         Wr = tf.get_variable("Wr", shape=[options.rnn_size, options.rnn_size])
@@ -32,6 +33,7 @@ def _get_or_create_attention_variables(options, attention_input, input_dim,
         match_lstm_cell = create_multi_rnn_cell(options, "match_lstm_birnn_cell", keep_prob, num_rnn_layers=num_rnn_layers)
         WqHq = multiply_3d_and_2d_tensor(attention_input, Wq) # shape = [batch_size, max_qst_length, rnn_size]
         return {
+            "W_gate": W_gate,
             "Wq": Wq,
             "Wp": Wp,
             "Wr": Wr,
@@ -75,6 +77,7 @@ def run_attention(sq_dataset, options, inputs, input_dim, attention_input, atten
                     lstm_vars["Wr"],
                     lstm_vars["WqHq"], lstm_vars["w"],
                     lstm_vars["bp"], lstm_vars["b"],
+                    lstm_vars["W_gate"],
                     attention_input, inputs,
                     forward_state, forward_outputs, input_dim,
                     reuse_vars=z > 0, scope=rnn_scope,
@@ -90,6 +93,7 @@ def run_attention(sq_dataset, options, inputs, input_dim, attention_input, atten
                     lstm_vars["Wr"],
                     lstm_vars["WqHq"], lstm_vars["w"],
                     lstm_vars["bp"], lstm_vars["b"],
+                    lstm_vars["W_gate"],
                     attention_input, inputs,
                     backward_state, backward_outputs, input_dim,
                     reuse_vars=True, scope=rnn_scope,
@@ -101,7 +105,7 @@ def run_attention(sq_dataset, options, inputs, input_dim, attention_input, atten
 
 def _build_match_lstm(options, batch_size, lstm_cell,
         input_index, Wp, Wr,
-        WqHq, w, bp, b, attention_inputs, inputs, state, outputs,
+        WqHq, w, bp, b, W_gate, attention_inputs, inputs, state, outputs,
         input_dim, reuse_vars=False, scope="", use_last_hidden=True):
     '''Builds a Match LSTM next state and output given the current state
        and output (and other relevant model variables). Adds to the current
@@ -127,8 +131,10 @@ def _build_match_lstm(options, batch_size, lstm_cell,
     alpha = tf.nn.softmax(wG + b) # size = [batch_size, attention_dim]
     Yalpha = tf.reshape(
                 tf.matmul(tf.reshape(alpha, [batch_size, 1, -1]), attention_inputs)
-                , tf.shape(Hpi)) # size = [batch_size, rnn_size]
-    z = tf.concat([Hpi, Yalpha], axis=1)
+                , tf.shape(Hpi)) # size = [batch_size, attention_dim]
+    z = tf.concat([Hpi, Yalpha], axis=1) # size = [batch_size, 2 * attention_dim]
+    smd = tf.sigmoid(tf.matmul(z, W_gate)) # size = [batch_size, 2 * attention_dim]
+    z = z * smd
     z = tf.reshape(z, [batch_size, 2 * input_dim])
 
     with tf.variable_scope(scope, reuse=reuse_vars):

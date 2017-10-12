@@ -4,6 +4,7 @@
 import tensorflow as tf
 
 from abc import ABCMeta, abstractmethod
+from model.encoding_util import *
 
 class BaseModel:
     def __init__(self, options, tf_iterators, sq_dataset):
@@ -19,6 +20,10 @@ class BaseModel:
         self.qst_iterator = tf_iterators.qst
         self.spn_iterator = tf_iterators.spn
         self.data_index_iterator = tf_iterators.data_index
+        self.wiq_iterator = tf_iterators.wiq
+        self.wic_iterator = tf_iterators.wic
+        self.ctx_inputs = None
+        self.qst_inputs = None
 
     def get_data_index_iterator(self):
         return self.data_index_iterator
@@ -47,27 +52,27 @@ class BaseModel:
     def setup(self):
         self.keep_prob = tf.placeholder(tf.float32)
         self._create_embedding_placeholder()
-
         self.batch_size = tf.shape(self.ctx_iterator)[0]
-        with tf.device("/cpu:0"):
-            self.ctx_embedded = tf.nn.embedding_lookup(self.words_placeholder, self.ctx_iterator) # size = [batch_size, max_ctx_length, word_dim]
-            self.qst_embedded = tf.nn.embedding_lookup(self.words_placeholder, self.qst_iterator) # size = [batch_size, max_qst_length, word_dim]
+        self.ctx_inputs, self.qst_inputs = create_model_inputs(
+                self.words_placeholder, self.ctx_iterator,
+                self.qst_iterator, self.options, self.wiq_iterator,
+                self.wic_iterator, self.sq_dataset)
 
     def get_start_spans(self):
-        return tf.argmax(self._get_start_span_probs(), axis=1)
+        return tf.argmax(self.get_start_span_probs(), axis=1)
 
     def get_end_spans(self):
-        return tf.argmax(self._get_end_span_probs(), axis=1)
+        return tf.argmax(self.get_end_span_probs(), axis=1)
 
     @abstractmethod
     def get_loss_op(self):
         pass
 
     @abstractmethod
-    def _get_start_span_probs(self):
+    def get_start_span_probs(self):
         pass
 
     @abstractmethod
-    def _get_end_span_probs(self):
+    def get_end_span_probs(self):
         pass
 

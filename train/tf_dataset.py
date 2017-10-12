@@ -6,16 +6,21 @@ import tensorflow as tf
 CTX_KEY = "ctx"
 QST_KEY = "qst"
 SPN_KEY = "spn"
+WIQ_KEY = "wiq"
+WIC_KEY = "wic"
 DATA_INDEX_KEY = "data_index"
 
 class TfIteratorWrapper():
     def __init__(self, ctx_iterator, qst_iterator, spn_iterator,
-            data_index_iterator):
+            data_index_iterator, word_in_question_iterator,
+            word_in_context_iterator):
         print("Creating TensorFlow Datasets and iterators")
         self.ctx = ctx_iterator
         self.qst = qst_iterator
         self.spn = spn_iterator
         self.data_index = data_index_iterator
+        self.wiq = word_in_question_iterator
+        self.wic = word_in_context_iterator
 
 class TfDataset():
     def __init__(self, options, squad_dataset):
@@ -50,8 +55,11 @@ class TfDataset():
             DATA_INDEX_KEY: self._make_ds(np_dataset.data_index),
             CTX_KEY: self._make_ds(np_dataset.ctx),
             QST_KEY: self._make_ds(np_dataset.qst),
-            SPN_KEY: self._make_ds(np_dataset.spn)}) \
-                .shuffle(buffer_size=self.options.dataset_buffer_size)
+            SPN_KEY: self._make_ds(np_dataset.spn),
+            WIQ_KEY: self._make_ds(np_dataset.word_in_question),
+            WIC_KEY: self._make_ds(np_dataset.word_in_context),
+            }) \
+            .shuffle(buffer_size=self.options.dataset_buffer_size)
         iterator = zip_ds.make_one_shot_iterator()
         return zip_ds, iterator
 
@@ -65,4 +73,5 @@ class TfDataset():
         with tf.device("/cpu:0"):
             next_elem = self.iterator.get_next()
             return TfIteratorWrapper(next_elem[CTX_KEY], next_elem[QST_KEY],
-                next_elem[SPN_KEY], next_elem[DATA_INDEX_KEY])
+                next_elem[SPN_KEY], next_elem[DATA_INDEX_KEY],
+                next_elem[WIQ_KEY], next_elem[WIC_KEY])

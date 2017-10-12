@@ -13,6 +13,8 @@ def _print_ds(vocab, ds):
         for zz in range(ds.ctx.shape[1]):
             i = ds.ctx[z, zz]
             word = vocab.get_word_for_id(i)
+            if ds.word_in_question[z, zz] == 1:
+                word = "[WIQ:]" + word
             l.append(word)
         print(" ".join(l))
     print("Questions")
@@ -21,6 +23,8 @@ def _print_ds(vocab, ds):
         for zz in range(ds.qst.shape[1]):
             i = ds.qst[z, zz]
             word = vocab.get_word_for_id(i)
+            if ds.word_in_context[z, zz] == 1:
+                word = "[WIC:]" + word
             l.append(word)
         print(" ".join(l))
     print("Spans")

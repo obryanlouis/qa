@@ -4,6 +4,13 @@
 import numpy as np
 import tensorflow as tf
 
+def get_eval_feed_dict(squad_data, tf_dataset, options, towers, is_train):
+    feed_dict = get_feed_dict(squad_data, tf_dataset, options, towers, is_train)
+    for i in range(len(towers)):
+        tower = towers[i]
+        feed_dict[tower.get_keep_prob_placeholder()] = 1
+    return feed_dict
+
 def get_feed_dict(squad_data, tf_dataset, options, towers, is_train):
     if len(towers) < 1:
         raise Exception("There are no models in the list of towers to train")
