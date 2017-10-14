@@ -7,19 +7,18 @@ import shutil
 import time
 
 from model.model_types import MODEL_TYPES
-from datasets.squad_data import SquadData
-from datasets.test_data import TestData
 from train.evaluation_util import *
+from train.model_builder import ModelBuilder
+from train.model_util import *
 from train.print_utils import *
 from train.s3_util import *
-from train.tf_dataset import *
 from train.train_util import *
 
 class Trainer:
     def __init__(self, options):
+        self.model_builder = None
         self.options = options
         self.session = None
-        self.towers = []
         self.sq_dataset = None
         self.tf_dataset = None
         self.saver = None
@@ -29,112 +28,34 @@ class Trainer:
         self.f1 = None
         self.summary_assignments = {}
         self.s3 = None
-        self.s3_save_key = self.options.model_type + "." + self.options.experiment_name
-        self.checkpoint_file_name = os.path.join(self.options.checkpoint_dir,
-            self.options.model_type + "." + self.options.experiment_name)
-
-    def _validate_parameters(self):
-        if self.options.model_type not in MODEL_TYPES:
-            raise Exception("Model type %s not recognized. Must be in set %s." % (self.options.model_type, MODEL_TYPES.keys()))
-
-    def _add_tower_and_compute_loss(self, scope, iterators):
-        # NOTE: Is there a way in tensorflow to just copy the
-        # graph instead of recreating and recompiling the whole thing? This
-        # may be useful in the case of multiple GPUs or ensemble evaluation.
-        print("Creating tower in model")
-        tower = MODEL_TYPES[self.options.model_type](self.options,
-                iterators, self.sq_dataset)
-        tower.setup()
-        print("Tower created")
-        self.towers.append(tower)
-        return tower.get_loss_op()
+        self.s3_save_key = create_s3_save_key(options)
+        self.checkpoint_file_name = create_checkpoint_file_name(options)
+        self.optimizer = None
 
     def _perform_summary_assignment(self, summary, value):
         assignment_dict = self.summary_assignments[summary]
         self.session.run(assignment_dict["assign_op"],
             feed_dict={assignment_dict["placeholder"]:value})
 
-    def _maybe_restore_model(self):
-        print("Restoring or creating new model...")
-        start = time.time()
-        maybe_download_files_from_s3(self.s3, self.s3_save_key,
-                self.options.checkpoint_dir, self.options)
-        if os.path.exists(self.checkpoint_file_name + ".index"):
-            print("Restoring model from checkpoint %s" % self.checkpoint_file_name)
-            self.saver.restore(self.session, self.checkpoint_file_name)
-        else:
-            print("Creating model with new parameters")
-            self.session.run(tf.global_variables_initializer())
-        print("Model initialization time %s" % (time.time() - start))
-
     def train(self):
-        self._validate_parameters()
+        train_start_time = time.time()
         if self.options.use_s3:
             self.s3 = boto3.resource('s3')
         if not os.path.exists(self.options.checkpoint_dir):
             os.makedirs(self.options.checkpoint_dir)
 
-        if self.options.use_fake_dataset:
-            self.sq_dataset = TestData(self.options)
-        else:
-            self.sq_dataset = SquadData(self.options)
+        self.sq_dataset = create_sq_dataset(self.options)
         with tf.Graph().as_default(), tf.device('/cpu:0'):
-            print("Creating TensorFlow dataset.")
-            create_tf_dataset_start = time.time()
-            self.tf_dataset = TfDataset(self.options, self.sq_dataset)
-            print("Time to create TensorFlow dataset: %s"
-                  % (time.time() - create_tf_dataset_start))
-            self.session = tf.Session(config=tf.ConfigProto(
-                        allow_soft_placement=True,
-                        log_device_placement=False))
-            tower_grads = []
+            self.tf_dataset = create_tf_dataset(self.options, self.sq_dataset)
+            self.session = create_session()
             learning_rate = tf.Variable(initial_value=
                 self.options.learning_rate, trainable=False, dtype=tf.float32)
             learning_rate_placeholder = tf.placeholder(tf.float32)
             assign_learning_rate = tf.assign(learning_rate,
                     tf.maximum(self.options.min_learning_rate, learning_rate_placeholder))
-            optimizer = tf.train.AdamOptimizer(
+            self.optimizer = tf.train.AdamOptimizer(
                 learning_rate=self.options.learning_rate)
-            loss = None
-            create_model_start_time = time.time()
-            tower_creation_time = 0
-            gradient_computation_time = 0
-            print("Creating towers")
-            with tf.variable_scope(tf.get_variable_scope()):
-                if self.options.num_gpus == 0:
-                    iterators = self.tf_dataset.create_tf_iterators()
-                    tower_start_time = time.time()
-                    loss = self._add_tower_and_compute_loss("single_tower_scope",
-                            iterators)
-                    tower_creation_time += (time.time() - tower_start_time)
-                    gradient_start_time = time.time()
-                    # Aggregation_method=2 is slightly slower, but
-                    # allows training larger models.
-                    tower_grads.append(optimizer.compute_gradients(loss,
-                                aggregation_method=2))
-                    gradient_computation_time += (time.time() - gradient_start_time)
-                else:
-                    for i in range(self.options.num_gpus):
-                        with tf.device('/gpu:%d' % i):
-                            with tf.name_scope('tower_%d' % i) as scope:
-                                iterators = self.tf_dataset.create_tf_iterators()
-                                tower_start_time = time.time()
-                                loss = self._add_tower_and_compute_loss(scope,
-                                        iterators)
-                                tower_creation_time += (time.time() - tower_start_time)
-                                # This should make each tower share variables.
-                                tf.get_variable_scope().reuse_variables()
-                                gradient_start_time = time.time()
-                                # Aggregation_method=2 is slightly slower, but
-                                # allows training larger models.
-                                grads = optimizer.compute_gradients(loss,
-                                        aggregation_method=2)
-                                gradient_computation_time += (time.time() - gradient_start_time)
-                                tower_grads.append(grads)
-            print("Time to create towers: %s" % tower_creation_time)
-            print("Time to compute gradients: %s" % gradient_computation_time)
-            print("Time to create towers and calculate gradients: %s"
-                  % (time.time() - create_model_start_time))
+            self.model_builder = ModelBuilder(self.optimizer, self.options, self.tf_dataset, self.sq_dataset, compute_gradients=True)
             print("Applying gradients")
             apply_gradients_start_time = time.time()
             train_op = None
@@ -143,15 +64,14 @@ class Trainer:
                 train_op = tf.no_op()
                 global_norm = tf.constant(0.0, dtype=tf.float32)
             else:
-                grads, variables = zip(*average_gradients(tower_grads))
+                grads, variables = zip(*average_gradients(self.model_builder.get_tower_grads()))
                 grads, global_norm = tf.clip_by_global_norm(grads, self.options.max_global_norm)
-                train_op = optimizer.apply_gradients(zip(grads, variables))
+                train_op = self.optimizer.apply_gradients(zip(grads, variables))
             iteration_num = tf.Variable(initial_value=1, trainable=False,
                 dtype=tf.int32)
             incr_iter = tf.assign(iteration_num, iteration_num + 1)
 
-            self.saver = tf.train.Saver(var_list=
-                tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES))
+            self.saver = create_saver()
             if self.options.clear_logs_before_training:
                 shutil.rmtree(self.options.log_dir, ignore_errors=True)
             if not os.path.exists(self.options.log_dir):
@@ -170,17 +90,19 @@ class Trainer:
                 placeholder = tf.placeholder(tf.float32)
                 assignment_dict["placeholder"] = placeholder
                 assignment_dict["assign_op"] = tf.assign(summary, placeholder)
+            loss = self.model_builder.get_loss()
             loss_summary = tf.summary.scalar("loss", loss)
             gradients_summary = tf.summary.scalar("gradients", global_norm)
             print("Time to apply gradients: %s"
                     % (time.time() - apply_gradients_start_time))
-            print("Time to create model, compute gradients, and apply them: %s"
-                    % (time.time() - create_model_start_time))
 
-            self._maybe_restore_model()
+            maybe_restore_model(self.s3, self.s3_save_key, self.options,
+                self.session, self.checkpoint_file_name, self.saver)
             maybe_print_model_parameters(self.options)
             self.tf_dataset.setup_with_tf_session(self.session)
 
+            print("Total setup time before starting training: %s"
+                  % (time.time() - train_start_time))
             current_iter = int(self.session.run(iteration_num))
             iterations_per_epoch = self.sq_dataset.train_ds.get_size() / self.options.batch_size
             total_iter = int(self.options.epochs * iterations_per_epoch)
@@ -196,7 +118,7 @@ class Trainer:
                     self.session.run([train_op, loss, incr_iter,
                         loss_summary, gradients_summary, global_norm], feed_dict=
                         get_train_feed_dict(self.sq_dataset, self.tf_dataset,
-                            self.options, self.towers))
+                            self.options, self.model_builder.get_towers()))
                 elapsed = time.time() - start_time
                 time_per_iter = elapsed / (i - start_iter + 1)
                 time_per_epoch = time_per_iter * iterations_per_epoch
@@ -219,7 +141,7 @@ class Trainer:
                         self.session.run([
                             loss_summary, gradients_summary, loss], 
                             feed_dict=get_dev_feed_dict(self.sq_dataset,
-                                self.tf_dataset, self.options, self.towers))
+                                self.tf_dataset, self.options, self.model_builder.get_towers()))
                     if self.options.log_gradients:
                         self.val_writer.add_summary(gradients_summary_value, i)
                     if self.options.log_loss:
@@ -229,10 +151,14 @@ class Trainer:
                           str(i) + "/" + str(total_iter),
                           "loss:", loss_value)
                 if i % self.options.compute_accuracy_every == 0:
-                    em, f1 = evaluate_train_partial(self.session, self.towers, self.sq_dataset, self.options, self.tf_dataset)
+                    em, f1 = evaluate_train_partial(self.session,
+                        self.model_builder.get_towers(), self.sq_dataset,
+                        self.options, self.tf_dataset)
                     print("")
                     print("[Train] F1", f1, "Em", em)
-                    val_em, val_f1 = evaluate_dev_partial(self.session, self.towers, self.sq_dataset, self.options, self.tf_dataset)
+                    val_em, val_f1 = evaluate_dev_partial(self.session,
+                        self.model_builder.get_towers(), self.sq_dataset,
+                        self.options, self.tf_dataset)
                     print("[Valid] F1", val_f1, "Em", val_em)
                     self._perform_summary_assignment(self.em, em)
                     self._perform_summary_assignment(self.f1, f1)

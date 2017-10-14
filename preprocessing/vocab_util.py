@@ -28,7 +28,7 @@ class Vocab:
     def get_vocab_size_including_pad_and_unk(self):
         return len(self._word_to_position) + 2
     def get_num_chars_including_padding(self):
-        return self.CHAR_PAD_ID
+        return self.CHAR_UNK_ID + 1
     def get_id_for_char(self, char):
         if char in self._char_to_position:
             return self._char_to_position[char]

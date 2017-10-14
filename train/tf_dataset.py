@@ -43,6 +43,7 @@ class TfDataset():
             self.handle, self.train_zip_ds.output_types, self.train_zip_ds.output_shapes)
 
     def setup_with_tf_session(self, sess):
+        print("Setting up tensorflow data iterator handles")
         self.train_handle = sess.run(self.train_zip_iterator.string_handle())
         self.dev_handle = sess.run(self.dev_zip_iterator.string_handle())
 

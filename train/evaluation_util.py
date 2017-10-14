@@ -9,7 +9,7 @@ from train.evaluation_functions import *
 def evaluate_train(session, towers, squad_dataset, options, tf_dataset):
     """Returns dev (exact match, f1)"""
     em, f1, _, _ = _eval(session, towers, squad_dataset,
-            options, tf_dataset, is_train=True, limit_samples=True)
+            options, tf_dataset, is_train=True, limit_samples=False)
     return em, f1
 
 def evaluate_train_partial(session, towers, squad_dataset, options, tf_dataset):
@@ -61,7 +61,7 @@ def _eval(session, towers, squad_dataset, options, tf_dataset, is_train, limit_s
 
     num_samples = dataset.get_size() if not limit_samples else options.num_evaluation_samples
     num_batches = max(1, int(num_samples / options.batch_size)) # close enough
-    for _ in range(num_batches):
+    for batch_number in range(num_batches):
         feed_dict = get_eval_feed_dict(squad_dataset, tf_dataset, options, towers, is_train=is_train)
         towers_spans_values = session.run(run_ops, feed_dict=feed_dict)
 
@@ -95,6 +95,11 @@ def _eval(session, towers, squad_dataset, options, tf_dataset, is_train, limit_s
                 gnd_start = gnd_spans[zz, 0]
                 gnd_end = gnd_spans[zz, 1]
                 ground_truths.append(dataset.get_sentence(example_index, gnd_start, gnd_end))
+        if not limit_samples:
+            print("Percent evaluated: %f (%d / %d)"
+                  % ((100 * float(batch_number + 1) / float(num_batches)),
+                     batch_number + 1, num_batches), end="\r")
+    print("")
     if options.verbose_logging:
         print("text_predictions", str(text_predictions).encode("utf-8"),
               "ground_truths", str(ground_truths).encode("utf-8"))
