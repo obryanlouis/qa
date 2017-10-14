@@ -26,6 +26,11 @@ SAVE_FILE_NAMES = {
     constants.DEV_FULL_TEXT_TOKENS_FILE,
     # Save the vocab
     constants.VOCAB_FILE,
+    # Save the character-level data
+    constants.TRAIN_CONTEXT_CHAR_FILE,
+    constants.TRAIN_QUESTION_CHAR_FILE,
+    constants.DEV_CONTEXT_CHAR_FILE,
+    constants.DEV_QUESTION_CHAR_FILE,
 }
 
 def already_uploaded_s3_files(options, bucket):

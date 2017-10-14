@@ -5,18 +5,23 @@ import tensorflow as tf
 
 CTX_KEY = "ctx"
 QST_KEY = "qst"
+CTX_CHAR_KEY = "ctx_char"
+QST_CHAR_KEY = "qst_char"
 SPN_KEY = "spn"
 WIQ_KEY = "wiq"
 WIC_KEY = "wic"
 DATA_INDEX_KEY = "data_index"
 
 class TfIteratorWrapper():
-    def __init__(self, ctx_iterator, qst_iterator, spn_iterator,
+    def __init__(self, ctx_iterator, qst_iterator, ctx_char_iterator,
+            qst_char_iterator, spn_iterator,
             data_index_iterator, word_in_question_iterator,
             word_in_context_iterator):
         print("Creating TensorFlow Datasets and iterators")
         self.ctx = ctx_iterator
         self.qst = qst_iterator
+        self.ctx_chars = ctx_char_iterator
+        self.qst_chars = qst_char_iterator
         self.spn = spn_iterator
         self.data_index = data_index_iterator
         self.wiq = word_in_question_iterator
@@ -55,6 +60,8 @@ class TfDataset():
             DATA_INDEX_KEY: self._make_ds(np_dataset.data_index),
             CTX_KEY: self._make_ds(np_dataset.ctx),
             QST_KEY: self._make_ds(np_dataset.qst),
+            CTX_CHAR_KEY: self._make_ds(np_dataset.ctx_chars),
+            QST_CHAR_KEY: self._make_ds(np_dataset.qst_chars),
             SPN_KEY: self._make_ds(np_dataset.spn),
             WIQ_KEY: self._make_ds(np_dataset.word_in_question),
             WIC_KEY: self._make_ds(np_dataset.word_in_context),
@@ -73,5 +80,6 @@ class TfDataset():
         with tf.device("/cpu:0"):
             next_elem = self.iterator.get_next()
             return TfIteratorWrapper(next_elem[CTX_KEY], next_elem[QST_KEY],
+                next_elem[CTX_CHAR_KEY], next_elem[QST_CHAR_KEY],
                 next_elem[SPN_KEY], next_elem[DATA_INDEX_KEY],
                 next_elem[WIQ_KEY], next_elem[WIC_KEY])

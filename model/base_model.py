@@ -15,9 +15,12 @@ class BaseModel:
         self.num_words = self.embeddings.shape[0]
         self.word_dim = self.embeddings.shape[1]
         self.embedding_placeholder = None
+        self.char_embedding_placeholder = None
         self.keep_prob = None
         self.ctx_iterator = tf_iterators.ctx
         self.qst_iterator = tf_iterators.qst
+        self.ctx_chars_iterator = tf_iterators.ctx_chars
+        self.qst_chars_iterator = tf_iterators.qst_chars
         self.spn_iterator = tf_iterators.spn
         self.data_index_iterator = tf_iterators.data_index
         self.wiq_iterator = tf_iterators.wiq
@@ -37,7 +40,7 @@ class BaseModel:
     def get_keep_prob_placeholder(self):
         return self.keep_prob
 
-    def _create_embedding_placeholder(self):
+    def _create_word_embedding_placeholder(self):
         # Need to add a vector for padding words and a vector for unique words.
         # The result, which should be used in further calculations, is stored
         # in self.words_placeholder rather than self.embedding_placeholder.
@@ -51,11 +54,13 @@ class BaseModel:
 
     def setup(self):
         self.keep_prob = tf.placeholder(tf.float32)
-        self._create_embedding_placeholder()
+        self._create_word_embedding_placeholder()
         self.batch_size = tf.shape(self.ctx_iterator)[0]
         self.ctx_inputs, self.qst_inputs = create_model_inputs(
                 self.words_placeholder, self.ctx_iterator,
-                self.qst_iterator, self.options, self.wiq_iterator,
+                self.qst_iterator, self.ctx_chars_iterator,
+                self.qst_chars_iterator,
+                self.options, self.wiq_iterator,
                 self.wic_iterator, self.sq_dataset)
 
     def get_start_spans(self):

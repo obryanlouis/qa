@@ -8,7 +8,7 @@ CTX_LEN = 19
 QST_LEN = 17
 
 class TestDataset:
-    def __init__(self, text_tokens, vocab):
+    def __init__(self, text_tokens, vocab, max_word_len):
         self.text_tokens = text_tokens
         vocab_size = vocab.get_vocab_size_including_pad_and_unk()
         self.ctx = np.random.randint(0, vocab_size, size=(NUM_SAMPLES, CTX_LEN))
@@ -22,6 +22,10 @@ class TestDataset:
         self.data_index = np.arange(self.ctx.shape[0])
         self.word_in_question = np.random.randint(0, 2, size=(NUM_SAMPLES, CTX_LEN))
         self.word_in_context = np.random.randint(0, 2, size=(NUM_SAMPLES, QST_LEN))
+        self.ctx_chars = np.random.randint(0, vocab.CHAR_PAD_ID,
+            size=(NUM_SAMPLES, CTX_LEN, max_word_len), dtype=np.uint8)
+        self.qst_chars = np.random.randint(0, vocab.CHAR_PAD_ID,
+            size=(NUM_SAMPLES, QST_LEN, max_word_len), dtype=np.uint8)
 
     def get_sentence(self, ctx_id, start_idx, end_idx):
         list_text_tokens = self.text_tokens[ctx_id]

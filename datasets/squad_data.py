@@ -21,6 +21,8 @@ class SquadData(SquadDataBase):
             load_file(data_dir, constants.TRAIN_CONTEXT_FILE),
             load_file(data_dir, constants.TRAIN_QUESTION_FILE),
             load_file(data_dir, constants.TRAIN_SPAN_FILE),
+            load_file(data_dir, constants.TRAIN_CONTEXT_CHAR_FILE),
+            load_file(data_dir, constants.TRAIN_QUESTION_CHAR_FILE),
             options,
             load_file(data_dir, constants.TRAIN_WORD_IN_QUESTION_FILE),
             load_file(data_dir, constants.TRAIN_WORD_IN_CONTEXT_FILE))
@@ -29,9 +31,12 @@ class SquadData(SquadDataBase):
             load_file(data_dir, constants.DEV_CONTEXT_FILE),
             load_file(data_dir, constants.DEV_QUESTION_FILE),
             load_file(data_dir, constants.DEV_SPAN_FILE),
+            load_file(data_dir, constants.DEV_CONTEXT_CHAR_FILE),
+            load_file(data_dir, constants.DEV_QUESTION_CHAR_FILE),
             options,
             load_file(data_dir, constants.DEV_WORD_IN_QUESTION_FILE),
             load_file(data_dir, constants.DEV_WORD_IN_CONTEXT_FILE))
         self.embeddings = np.load(os.path.join(data_dir,
                     constants.EMBEDDING_FILE))
         self.word_vec_size = constants.WORD_VEC_DIM
+        self.max_word_len = constants.MAX_WORD_LEN

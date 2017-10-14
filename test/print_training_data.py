@@ -4,29 +4,31 @@ from flags import get_options_from_flags
 
 import tensorflow as tf
 
-PRINT_LIMIT = 10
+PRINT_LIMIT = 1
+WORD_PRINT_LIMIT = 5
+
+def _print_qst_or_ctx_np_arr(arr, char_arr, vocab, ds):
+    for z in range(PRINT_LIMIT):
+        l = []
+        for zz in range(arr.shape[1]):
+            i = arr[z, zz]
+            word = vocab.get_word_for_id(i)
+            chars_for_word = []
+            for cz in range(WORD_PRINT_LIMIT):
+                ch_idx = char_arr[z, zz, cz]
+                chars_for_word.append(vocab.get_char_for_id(ch_idx))
+            if ds.word_in_question[z, zz] == 1:
+                word = "[WIQ:]" + word
+            word_from_chars = ''.join(chars_for_word)
+            word = word + "[CHARS:" + word_from_chars + "]"
+            l.append(word)
+        print(" ".join(l))
 
 def _print_ds(vocab, ds):
     print("Context")
-    for z in range(PRINT_LIMIT):
-        l = []
-        for zz in range(ds.ctx.shape[1]):
-            i = ds.ctx[z, zz]
-            word = vocab.get_word_for_id(i)
-            if ds.word_in_question[z, zz] == 1:
-                word = "[WIQ:]" + word
-            l.append(word)
-        print(" ".join(l))
+    _print_qst_or_ctx_np_arr(ds.ctx, ds.ctx_chars, vocab, ds)
     print("Questions")
-    for z in range(PRINT_LIMIT):
-        l = []
-        for zz in range(ds.qst.shape[1]):
-            i = ds.qst[z, zz]
-            word = vocab.get_word_for_id(i)
-            if ds.word_in_context[z, zz] == 1:
-                word = "[WIC:]" + word
-            l.append(word)
-        print(" ".join(l))
+    _print_qst_or_ctx_np_arr(ds.qst, ds.qst_chars, vocab, ds)
     print("Spans")
     print(ds.spn[:PRINT_LIMIT])
     print("")

@@ -8,7 +8,7 @@ f.DEFINE_integer("max_ctx_length", 267,
         "Max passage length to keep. Content longer will be trimmed.")
 f.DEFINE_integer("max_qst_length", 30,
         "Max question length to keep. Content longer will be trimmed.")
-f.DEFINE_string("model_type", "match_lstm", "Type of model to train." +
+f.DEFINE_string("model_type", "combined", "Type of model to train." +
         "The model types are in models/model_types.py")
 f.DEFINE_string("experiment_name", "local",
         "Name of the experiment being run; different experiments will be " +
@@ -76,6 +76,10 @@ f.DEFINE_boolean("use_word_in_question_feature", True, "Whether to use the " +
         "question")
 f.DEFINE_boolean("use_word_similarity_feature", True, "Whether to use the" +
         "feature indicating word similarity.")
+f.DEFINE_boolean("use_character_data", True, "Whether to add character-level" +
+        "data to the inputs.")
+f.DEFINE_integer("character_embedding_size", 30, "Size of character " +
+        "embeddings. Only applicable if character-level data is enabled.")
 
 def get_options_from_flags():
     return tf.app.flags.FLAGS

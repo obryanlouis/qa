@@ -46,7 +46,7 @@ def _get_or_create_attention_variables(options, attention_input, input_dim,
 
 def run_attention(sq_dataset, options, inputs, input_dim, attention_input, attention_dim,
         scope, batch_size, attention_length, keep_prob,
-        num_rnn_layers=1):
+        input_length, num_rnn_layers=1):
     '''Runs an attention RNN over the inputs given the attention.
        Inputs:
             inputs: sized [batch_size, max_ctx_length, input_dim]
@@ -67,7 +67,7 @@ def run_attention(sq_dataset, options, inputs, input_dim, attention_input, atten
         forward_outputs  = []
         backward_outputs = []
         rnn_scope = "rnn_scope"
-        for z in range(sq_dataset.get_max_ctx_len()):
+        for z in range(input_length):
             forward_state = _build_match_lstm(
                     options,
                     batch_size,
@@ -88,7 +88,7 @@ def run_attention(sq_dataset, options, inputs, input_dim, attention_input, atten
                     options,
                     batch_size,
                     lstm_vars["match_lstm_cell"],
-                    sq_dataset.get_max_ctx_len() - z - 1,
+                    input_length - z - 1,
                     lstm_vars["Wp"],
                     lstm_vars["Wr"],
                     lstm_vars["WqHq"], lstm_vars["w"],
