@@ -37,24 +37,12 @@ class CombinedModel(BaseModel):
                 2 * self.options.rnn_size, "ctx_self_matching_attention", self.batch_size,
                 self.sq_dataset.get_max_ctx_len(), self.keep_prob,
                 self.sq_dataset.get_max_ctx_len(), num_rnn_layers=1)
-        # Step 4/5. Do steps 2/3 vice versa for question inputs as opposed to
-        # context inputs.
-        qst_attention = run_attention(self.sq_dataset, self.options,
-                question_outputs, 2 * self.options.rnn_size, passage_outputs,
-                2 * self.options.rnn_size, "qst_attention_birnn", self.batch_size,
-                self.sq_dataset.get_max_ctx_len(), self.keep_prob,
-                self.sq_dataset.get_max_qst_len(), num_rnn_layers=1)
-        qst_attention = run_attention(self.sq_dataset, self.options,
-                qst_attention, 2 * self.options.rnn_size, qst_attention,
-                2 * self.options.rnn_size, "qst_self_matching_attention", self.batch_size,
-                self.sq_dataset.get_max_qst_len(), self.keep_prob,
-                self.sq_dataset.get_max_qst_len(), num_rnn_layers=1)
         # Step 6. Create the answer output layer using answer-pointer boundary
         # decoding.
         self.loss, self.start_span_probs, self.end_span_probs = \
             decode_answer_pointer_boundary(self.options, self.batch_size,
                 self.keep_prob, self.spn_iterator, ctx_attention,
-                self.sq_dataset, qst_attention)
+                self.sq_dataset, question_outputs)
 
     def get_loss_op(self):
         return self.loss

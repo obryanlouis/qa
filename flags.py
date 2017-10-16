@@ -19,7 +19,7 @@ f.DEFINE_string("checkpoint_dir", "checkpoint",
 f.DEFINE_float("learning_rate", 1e-3, "Initial learning rate.")
 f.DEFINE_float("min_learning_rate", 1e-5,
         "Minimum learning rate, even after decay.")
-f.DEFINE_float("learning_rate_decay", 0.9,
+f.DEFINE_float("learning_rate_decay", 0.8,
         "Learning rate to apply continuously over each epoch.")
 f.DEFINE_string("data_dir", "data",
         "Directory with word embeddings, vocab, and training/dev data.")
@@ -69,7 +69,7 @@ f.DEFINE_boolean("use_fake_dataset", True, "Whether to use a synthetic" +
         "dataset in order to debug the model.")
 f.DEFINE_boolean("verbose_logging", True, "Whether to print verbose logs.")
 f.DEFINE_float("max_global_norm", 10.0, "Used for clipping norms.")
-f.DEFINE_integer("max_search_span_range", 15, "Maximum number of words in a " +
+f.DEFINE_integer("max_search_span_range", 20, "Maximum number of words in a " +
         "predicted span; used to get a small boost in performance.")
 f.DEFINE_boolean("use_word_in_question_feature", True, "Whether to use the " +
         "feature indicating for each word in the context whether it is in the" +

@@ -19,6 +19,17 @@ def create_multi_rnn_cell(options, scope, keep_prob, num_rnn_layers=None, layer_
                 cells.append(cell)
         return tf.nn.rnn_cell.MultiRNNCell(cells)
 
+def run_bidirectional_lstm(scope, inputs, keep_prob, options):
+    '''Returns (outputs)
+    '''
+    with tf.variable_scope(scope):
+        cell_fw = create_multi_rnn_cell(options, "rnn_forward_cell", keep_prob)
+        cell_bw = create_multi_rnn_cell(options, "rnn_backward_cell", keep_prob)
+        outputs, output_states = tf.nn.bidirectional_dynamic_rnn(
+                cell_fw, cell_bw, inputs, dtype=tf.float32)
+        outputs_fw, outputs_bw = outputs
+        return tf.concat([outputs_fw, outputs_bw], axis=2)
+
 def _get_or_create_attention_variables(options, attention_input, input_dim,
         attention_dim, scope, attention_length,
         num_rnn_layers, keep_prob):
@@ -49,7 +60,7 @@ def run_attention(sq_dataset, options, inputs, input_dim, attention_input, atten
         input_length, num_rnn_layers=1):
     '''Runs an attention RNN over the inputs given the attention.
        Inputs:
-            inputs: sized [batch_size, max_ctx_length, input_dim]
+            inputs: sized [batch_size, input_length, input_dim]
             attention_input: sized [batch_size, *, attention_dim]
        Outputs:
             output tensor sized [batch_size, max_ctx_length, 2 * rnn_size]
@@ -113,7 +124,8 @@ def _build_match_lstm(options, batch_size, lstm_cell,
 
        Inputs:
             use_last_hidden: Whether to add the last hidden state into the
-                input of tanh. Should be False for self matching attention.
+                input of tanh. Should be False for self matching attention,
+                although it doesn't seem to make much difference.
             state: GRU cell state
 
        Output:
@@ -126,9 +138,9 @@ def _build_match_lstm(options, batch_size, lstm_cell,
         for s in state:
             Eq += tf.matmul(s, Wr) # hidden_state * matrix
     Eq += bp
-    G = tf.tanh(WqHq + tf.reshape(Eq, [batch_size, 1, options.rnn_size])) # size = [batch_size, attention_dim, rnn_size]
-    wG = tf.squeeze(multiply_3d_and_2d_tensor(G, w)) # size = [batch_size, attention_dim]
-    alpha = tf.nn.softmax(wG + b) # size = [batch_size, attention_dim]
+    G = tf.tanh(WqHq + tf.reshape(Eq, [batch_size, 1, options.rnn_size])) # size = [batch_size, attention_length, rnn_size]
+    wG = tf.squeeze(multiply_3d_and_2d_tensor(G, w)) # size = [batch_size, attention_length]
+    alpha = tf.nn.softmax(wG + b) # size = [batch_size, attention_length]
     Yalpha = tf.reshape(
                 tf.matmul(tf.reshape(alpha, [batch_size, 1, -1]), attention_inputs)
                 , tf.shape(Hpi)) # size = [batch_size, attention_dim]

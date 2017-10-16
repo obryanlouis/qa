@@ -48,10 +48,6 @@ class Evaluator:
             maybe_print_model_parameters(self.options)
             self.tf_dataset.setup_with_tf_session(self.session)
 
-            train_em, train_f1 = evaluate_train(self.session,
-                self.model_builder.get_towers(), self.sq_dataset, self.options,
-                self.tf_dataset)
-            print("Train Em:", train_em, "Train F1:", train_f1)
             dev_em, dev_f1 = evaluate_dev(self.session,
                 self.model_builder.get_towers(), self.sq_dataset, self.options,
                 self.tf_dataset)
