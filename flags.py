@@ -8,12 +8,13 @@ f.DEFINE_integer("max_ctx_length", 267,
         "Max passage length to keep. Content longer will be trimmed.")
 f.DEFINE_integer("max_qst_length", 30,
         "Max question length to keep. Content longer will be trimmed.")
-f.DEFINE_string("model_type", "combined", "Type of model to train." +
+f.DEFINE_string("model_type", "match_lstm", "Type of model to train." +
         "The model types are in models/model_types.py")
-f.DEFINE_string("experiment_name", "local",
+f.DEFINE_string("experiment_name", "test",
         "Name of the experiment being run; different experiments will be " +
         "saved and loaded from different model files and can use different " +
-        "model hyperparameters")
+        "model hyperparameters. If you use the same experiment name, then it" +
+        "will be loaded from from the same model files (including using S3)")
 f.DEFINE_string("checkpoint_dir", "checkpoint",
         "Directory to save model weights and metadata.")
 f.DEFINE_float("learning_rate", 1e-3, "Initial learning rate.")
@@ -43,7 +44,7 @@ f.DEFINE_boolean("use_s3", False,
         "Whether to use AWS S3 storage to save model checkpoints. " +
         "Checkpoints will be saved according to the experiment name and " +
         "model type.")
-f.DEFINE_string("s3_bucket_name", "zippy-machine-learning",
+f.DEFINE_string("s3_bucket_name", "fill-in-your-s3-bucket-name",
         "The AWS S3 bucket to save models to.")
 f.DEFINE_string("s3_data_folder_name", "data", "Folder within the S3 bucket " +
         "to store train/dev data and word vector indices. Only applies if " +
@@ -54,7 +55,9 @@ f.DEFINE_integer("num_gpus", 0, "Number of GPUs available for training. " +
         "Use 0 for CPU-only training")
 f.DEFINE_integer("batch_size", 10, "Training batch size. If using GPUs, " +
         "then this will be the same for each GPU.")
-f.DEFINE_integer("epochs", 10, "Number of epochs to train")
+f.DEFINE_integer("epochs", 10, "Number of epochs to train." +
+        "The training process will keep going after this limit, but will show" +
+        "a training progress percent based on this number of epochs.")
 f.DEFINE_integer("num_evaluation_samples", 200, "Number of samples of the " +
         "datasets to take for partial exact match and f1 score evaluations." +
         "This is done since it can take a while to evaluate the model on the" +
@@ -65,9 +68,9 @@ f.DEFINE_integer("num_rnn_layers", 1, "The number of rnn layers to use in " +
 f.DEFINE_float("dropout", 0.2, "The amount of dropout to use.")
 f.DEFINE_integer("dataset_buffer_size", 100, "Size of the dataset buffer." +
         "See the Tensorflow Dataset API for details.")
-f.DEFINE_boolean("use_fake_dataset", True, "Whether to use a synthetic" +
+f.DEFINE_boolean("use_fake_dataset", False, "Whether to use a synthetic" +
         "dataset in order to debug the model.")
-f.DEFINE_boolean("verbose_logging", True, "Whether to print verbose logs.")
+f.DEFINE_boolean("verbose_logging", False, "Whether to print verbose logs.")
 f.DEFINE_float("max_global_norm", 10.0, "Used for clipping norms.")
 f.DEFINE_integer("max_search_span_range", 20, "Maximum number of words in a " +
         "predicted span; used to get a small boost in performance.")

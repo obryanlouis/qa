@@ -241,6 +241,10 @@ class DataParser():
         print("Finished getting vocabulary")
         self.nlp = StanfordCoreNlpCommunication(self.data_dir)
         self.nlp.start_server()
+        print("Waiting for Core NLP server to start")
+        # TODO: improve this logic by actually pinging the server until it
+        # responds.
+        time.sleep(5)
         print("Getting DEV dataset")
         dev_ctx_list, dev_word_in_question, dev_qst_list, \
             dev_word_in_context, dev_spans_np_arr, dev_text_tokens, \
