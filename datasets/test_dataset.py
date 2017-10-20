@@ -26,6 +26,14 @@ class TestDataset:
             size=(NUM_SAMPLES, CTX_LEN, max_word_len), dtype=np.uint8)
         self.qst_chars = np.random.randint(0, vocab.CHAR_PAD_ID,
             size=(NUM_SAMPLES, QST_LEN, max_word_len), dtype=np.uint8)
+        self.question_ids = self.data_index
+
+    def get_sentences_for_all_gnd_truths(self, ctx_id):
+        sentences = []
+        start_idx, end_idx = self.spn[ctx_id, 0], self.spn[ctx_id, 1]
+        for _ in range(3):
+            sentences.append(self.get_sentence(ctx_id, start_idx, end_idx))
+        return sentences
 
     def get_sentence(self, ctx_id, start_idx, end_idx):
         list_text_tokens = self.text_tokens[ctx_id]

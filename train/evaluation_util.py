@@ -55,7 +55,6 @@ def _eval(session, towers, squad_dataset, options, tf_dataset, is_train, limit_s
     for tower in towers:
         run_ops.append(tower.get_start_span_probs())
         run_ops.append(tower.get_end_span_probs())
-        run_ops.append(tower.get_gnd_truth_spans())
         run_ops.append(tower.get_data_index_iterator())
     dataset = squad_dataset.train_ds if is_train else squad_dataset.dev_ds
 
@@ -68,22 +67,18 @@ def _eval(session, towers, squad_dataset, options, tf_dataset, is_train, limit_s
         num_towers = len(towers)
         items_per_tower = int(len(run_ops) / num_towers)
         for z in range(num_towers):
-            start_span_probs, end_span_probs, gnd_spans, data_indices = \
+            start_span_probs, end_span_probs, data_indices = \
                 towers_spans_values[items_per_tower * z], \
                 towers_spans_values[items_per_tower * z + 1], \
-                towers_spans_values[items_per_tower * z + 2], \
-                towers_spans_values[items_per_tower * z + 3],
+                towers_spans_values[items_per_tower * z + 2]
             if start_span_probs.shape != end_span_probs.shape:
                 print("start_span_probs shape", start_span_probs.shape,
                       "end_span_probs shape", end_span_probs.shape,
-                      "gnd_spans shape", gnd_spans.shape,
                       "data_indices shape", data_indices.shape)
                 print("start_span_probs", start_span_probs)
                 print("end_span_probs", end_span_probs)
-                print("gnd_spans", gnd_spans)
-                print("data_indices", gnd_spans)
+                print("data_indices", data_indices)
             assert start_span_probs.shape == end_span_probs.shape
-            assert start_span_probs.shape[0] == gnd_spans.shape[0]
             assert start_span_probs.shape[0] == data_indices.shape[0]
             for zz in range(start_span_probs.shape[0]):
                 start, end = get_best_start_and_end(start_span_probs[zz],
@@ -92,9 +87,8 @@ def _eval(session, towers, squad_dataset, options, tf_dataset, is_train, limit_s
                 # These need to be the original sentences from the training/dev
                 # sets, without any padding/unique word replacements.
                 text_predictions.append(dataset.get_sentence(example_index, start, end))
-                gnd_start = gnd_spans[zz, 0]
-                gnd_end = gnd_spans[zz, 1]
-                ground_truths.append(dataset.get_sentence(example_index, gnd_start, gnd_end))
+                acceptable_gnd_truths = dataset.get_sentences_for_all_gnd_truths(example_index)
+                ground_truths.append(acceptable_gnd_truths)
         if not limit_samples:
             print("Percent evaluated: %f (%d / %d)"
                   % ((100 * float(batch_number + 1) / float(num_batches)),

@@ -4,7 +4,7 @@ from flags import get_options_from_flags
 
 import tensorflow as tf
 
-PRINT_LIMIT = 1
+PRINT_LIMIT = 10
 WORD_PRINT_LIMIT = 5
 
 def _print_qst_or_ctx_np_arr(arr, char_arr, vocab, ds):
@@ -24,6 +24,11 @@ def _print_qst_or_ctx_np_arr(arr, char_arr, vocab, ds):
             l.append(word)
         print(" ".join(l))
 
+def _print_gnd_truths(ds, vocab):
+    for z in range(PRINT_LIMIT):
+        sentences = ds.get_sentences_for_all_gnd_truths(z)
+        print(";".join(sentences))
+
 def _print_ds(vocab, ds):
     print("Context")
     _print_qst_or_ctx_np_arr(ds.ctx, ds.ctx_chars, vocab, ds)
@@ -31,6 +36,8 @@ def _print_ds(vocab, ds):
     _print_qst_or_ctx_np_arr(ds.qst, ds.qst_chars, vocab, ds)
     print("Spans")
     print(ds.spn[:PRINT_LIMIT])
+    print("Ground truths")
+    _print_gnd_truths(ds, vocab)
     print("")
 
 def main(_):

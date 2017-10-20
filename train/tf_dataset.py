@@ -30,11 +30,15 @@ class TfIteratorWrapper():
 class TfDataset():
     def __init__(self, options, squad_dataset):
         self.options = options
+        self.train_placeholder_feed_dict = {}
+        self.dev_placeholder_feed_dict = {}
 
         self.train_zip_ds, self.train_zip_iterator = \
-            self._make_zip_ds_and_iterator(squad_dataset.train_ds)
+            self._make_zip_ds_and_iterator(squad_dataset.train_ds,
+                self.train_placeholder_feed_dict)
         self.dev_zip_ds, self.dev_zip_iterator = \
-            self._make_zip_ds_and_iterator(squad_dataset.dev_ds)
+            self._make_zip_ds_and_iterator(squad_dataset.dev_ds,
+                self.dev_placeholder_feed_dict)
         self.train_handle = None
         self.dev_handle = None
 
@@ -46,6 +50,8 @@ class TfDataset():
         print("Setting up tensorflow data iterator handles")
         self.train_handle = sess.run(self.train_zip_iterator.string_handle())
         self.dev_handle = sess.run(self.dev_zip_iterator.string_handle())
+        sess.run(self.train_zip_iterator.initializer, feed_dict=self.train_placeholder_feed_dict)
+        sess.run(self.dev_zip_iterator.initializer, feed_dict=self.dev_placeholder_feed_dict)
 
     def get_iterator_handle(self):
         return self.handle
@@ -56,24 +62,26 @@ class TfDataset():
     def get_dev_handle(self):
         return self.dev_handle
 
-    def _make_zip_ds_and_iterator(self, np_dataset):
+    def _make_zip_ds_and_iterator(self, np_dataset, placeholder_dict):
         zip_ds = tf.contrib.data.Dataset.zip({
-            DATA_INDEX_KEY: self._make_ds(np_dataset.data_index),
-            CTX_KEY: self._make_ds(np_dataset.ctx),
-            QST_KEY: self._make_ds(np_dataset.qst),
-            CTX_CHAR_KEY: self._make_ds(np_dataset.ctx_chars),
-            QST_CHAR_KEY: self._make_ds(np_dataset.qst_chars),
-            SPN_KEY: self._make_ds(np_dataset.spn),
-            WIQ_KEY: self._make_ds(np_dataset.word_in_question),
-            WIC_KEY: self._make_ds(np_dataset.word_in_context),
+            DATA_INDEX_KEY: self._make_ds(np_dataset.data_index, placeholder_dict),
+            CTX_KEY: self._make_ds(np_dataset.ctx, placeholder_dict),
+            QST_KEY: self._make_ds(np_dataset.qst, placeholder_dict),
+            CTX_CHAR_KEY: self._make_ds(np_dataset.ctx_chars, placeholder_dict),
+            QST_CHAR_KEY: self._make_ds(np_dataset.qst_chars, placeholder_dict),
+            SPN_KEY: self._make_ds(np_dataset.spn, placeholder_dict),
+            WIQ_KEY: self._make_ds(np_dataset.word_in_question, placeholder_dict),
+            WIC_KEY: self._make_ds(np_dataset.word_in_context, placeholder_dict),
             }) \
             .shuffle(buffer_size=self.options.dataset_buffer_size)
-        iterator = zip_ds.make_one_shot_iterator()
+        iterator = zip_ds.make_initializable_iterator()
         return zip_ds, iterator
 
-    def _make_ds(self, np_arr):
+    def _make_ds(self, np_arr, placeholder_dict):
         pad_shape = np_arr.shape[1:]
-        return tf.contrib.data.Dataset.from_tensor_slices(np_arr) \
+        placeholder = tf.placeholder(dtype=np_arr.dtype, shape=np_arr.shape)
+        placeholder_dict[placeholder] = np_arr
+        return tf.contrib.data.Dataset.from_tensor_slices(placeholder) \
             .padded_batch(self.options.batch_size, pad_shape) \
             .repeat()
 

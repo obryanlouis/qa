@@ -82,6 +82,6 @@ class StanfordCoreNlpCommunication():
             'tokenize.options': 'splitHyphenated=true,untokenizable=allKeep,invertible=true',
         })
         if isinstance(annotate, str):
-            print("Some internal failure happened when using Stanford CorenNLP")
+            print("Some internal failure happened when using Stanford CoreNLP")
             return None
         return annotate["tokens"]

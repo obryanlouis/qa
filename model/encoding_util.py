@@ -21,8 +21,10 @@ def encode_passage_and_question(options, passage, question, keep_prob):
        [batch_size, max ctx length | max qst length, 2 * rnn_size].
     """
     with tf.variable_scope("preprocessing_lstm"):
-        rnn_cell_fw = create_multi_rnn_cell(options, "preprocessing_rnn_forward_cell", keep_prob)
-        rnn_cell_bw = create_multi_rnn_cell(options, "preprocessing_rnn_backward_cell", keep_prob)
+        rnn_cell_fw = create_multi_rnn_cell(options,
+            "preprocessing_rnn_forward_cell", keep_prob, num_rnn_layers=3)
+        rnn_cell_bw = create_multi_rnn_cell(options,
+            "preprocessing_rnn_backward_cell", keep_prob, num_rnn_layers=3)
         state_fw, state_bw, passage_outputs = _run_bidirectional_preprocessing_lstm(passage,
                 rnn_cell_fw, rnn_cell_bw)
         # size(passage_outputs) = [batch_size, max_ctx_length, 2 * rnn_size]

@@ -31,6 +31,11 @@ SAVE_FILE_NAMES = {
     constants.TRAIN_QUESTION_CHAR_FILE,
     constants.DEV_CONTEXT_CHAR_FILE,
     constants.DEV_QUESTION_CHAR_FILE,
+    # Save the question id files
+    constants.TRAIN_QUESTION_IDS_FILE,
+    constants.TRAIN_QUESTION_IDS_TO_GND_TRUTHS_FILE,
+    constants.DEV_QUESTION_IDS_FILE,
+    constants.DEV_QUESTION_IDS_TO_GND_TRUTHS_FILE,
 }
 
 def already_uploaded_s3_files(options, bucket):

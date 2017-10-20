@@ -24,9 +24,15 @@ def get_best_start_and_end(start_probs, end_probs, options):
 def avg_over_list(metric_fn, predictions, ground_truths):
     avg_value = 0.0
     for i in range(len(predictions)):
-        avg_value += metric_fn(predictions[i], ground_truths[i])
+        avg_value += max_over_gnd_truths(metric_fn, predictions[i], ground_truths[i])
     avg_value /= len(predictions)
     return avg_value
+
+def max_over_gnd_truths(metric_fn, prediction, ground_truths):
+    max_value = 0
+    for gnd_truth in ground_truths:
+        max_value = max(max_value, metric_fn(prediction, gnd_truth))
+    return max_value
 
 def f1_score(prediction, ground_truth):
     if prediction == ground_truth:

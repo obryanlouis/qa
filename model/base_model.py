@@ -31,9 +31,6 @@ class BaseModel:
     def get_data_index_iterator(self):
         return self.data_index_iterator
 
-    def get_gnd_truth_spans(self):
-        return self.spn_iterator
-
     def get_embedding_placeholder(self):
         return self.embedding_placeholder
 

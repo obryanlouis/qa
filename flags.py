@@ -37,7 +37,7 @@ f.DEFINE_string("log_valid_every", 100, "Frequency (in iterations) to log " +
 f.DEFINE_integer("compute_accuracy_every", 200, "Frequency (in iterations) " +
         "to compute exact matach and f1 scores on the training and " +
         "validation data sets.")
-f.DEFINE_integer("save_every", 1500, "Frequency (in iterations) to save the "
+f.DEFINE_integer("save_every", 1000, "Frequency (in iterations) to save the "
         "model.")
 f.DEFINE_boolean("use_s3", False,
         "Whether to use AWS S3 storage to save model checkpoints. " +
@@ -80,6 +80,9 @@ f.DEFINE_boolean("use_character_data", True, "Whether to add character-level" +
         "data to the inputs.")
 f.DEFINE_integer("character_embedding_size", 30, "Size of character " +
         "embeddings. Only applicable if character-level data is enabled.")
+f.DEFINE_float("truncate_dataset_percent", 1.0, "Percent of the dataset" +
+        "to use for training. If 1.0, then the full training set will be" +
+        "used.")
 
 def get_options_from_flags():
     return tf.app.flags.FLAGS
