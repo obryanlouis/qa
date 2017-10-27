@@ -3,10 +3,12 @@
 
 import numpy as np
 
+from datasets.sentence_util import *
+
 class Dataset:
     def __init__(self, text_tokens, contexts, questions, spans, context_chars,
             question_chars, options, word_in_question, word_in_context,
-            question_ids, question_ids_to_ground_truths):
+            question_ids, question_ids_to_ground_truths, vocab):
         assert len(text_tokens) == contexts.shape[0]
         assert len(text_tokens) == questions.shape[0]
         assert len(text_tokens) == spans.shape[0]
@@ -31,6 +33,7 @@ class Dataset:
         self.qst_chars = question_chars[:num_dataset, :options.max_qst_length, :]
         self.question_ids = question_ids[:num_dataset]
         self.question_ids_to_ground_truths = question_ids_to_ground_truths
+        self.vocab = vocab
         assert len(self.text_tokens) == self.ctx.shape[0]
         assert len(self.text_tokens) == self.qst.shape[0]
         assert len(self.text_tokens) == self.spn.shape[0]
@@ -39,6 +42,9 @@ class Dataset:
         assert len(self.text_tokens) == self.word_in_question.shape[0]
         assert len(self.text_tokens) == self.word_in_context.shape[0]
         assert len(self.text_tokens) == self.question_ids.shape[0]
+
+    def get_question_sentence(self, example_idx):
+        return find_question_sentence(self.qst, self.vocab, example_idx)
 
     def get_sentences_for_all_gnd_truths(self, example_idx):
         question_id = self.question_ids[example_idx]

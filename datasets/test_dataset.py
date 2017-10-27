@@ -3,6 +3,8 @@
 
 import numpy as np
 
+from datasets.sentence_util import *
+
 NUM_SAMPLES = 13
 CTX_LEN = 19
 QST_LEN = 17
@@ -10,6 +12,7 @@ QST_LEN = 17
 class TestDataset:
     def __init__(self, text_tokens, vocab, max_word_len):
         self.text_tokens = text_tokens
+        self.vocab = vocab
         vocab_size = vocab.get_vocab_size_including_pad_and_unk()
         self.ctx = np.random.randint(0, vocab_size, size=(NUM_SAMPLES, CTX_LEN))
         self.qst = np.random.randint(0, vocab_size, size=(NUM_SAMPLES, QST_LEN))
@@ -27,6 +30,9 @@ class TestDataset:
         self.qst_chars = np.random.randint(0, vocab.CHAR_PAD_ID,
             size=(NUM_SAMPLES, QST_LEN, max_word_len), dtype=np.uint8)
         self.question_ids = self.data_index
+
+    def get_question_sentence(self, example_idx):
+        return find_question_sentence(self.qst, self.vocab, example_idx)
 
     def get_sentences_for_all_gnd_truths(self, ctx_id):
         sentences = []

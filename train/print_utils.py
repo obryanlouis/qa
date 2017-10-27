@@ -4,6 +4,8 @@
 import tensorflow as tf
 
 def readable_time(eta):
+    if eta < 0:
+        return "[DONE]"
     if eta >= 3600:
         return "(hr) " + str(eta / 3600)
     if eta >= 60:

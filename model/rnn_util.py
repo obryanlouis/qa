@@ -5,6 +5,42 @@ import tensorflow as tf
 
 from model.tf_util import *
 
+def get_question_attention(options, question_rnn_outputs, reduce_size):
+    '''Gets an attention pooling vector of the question to be used as the
+       initial input to the answer recurrent network.
+
+       Inputs:
+            question_rnn_outputs: Tensor of the question rnn outputs of
+                size [batch_size, Q, 2 * rnn_size].
+       Output:
+            A tensor of size [batch_size, rnn_size].
+    '''
+    with tf.variable_scope("decode_question_attention"):
+        sh = tf.shape(question_rnn_outputs)
+        batch_size = sh[0]
+        Q = sh[1]
+
+        W = 2 * options.rnn_size
+        W_question = tf.get_variable("W", dtype=tf.float32, shape=[W, options.rnn_size])
+        W_param = tf.get_variable("W_param", dtype=tf.float32, shape=[options.rnn_size, options.rnn_size])
+        V_param = tf.get_variable("V_param", dtype=tf.float32, shape=[options.rnn_size, 1])
+        v = tf.get_variable("v", dtype=tf.float32, shape=[options.rnn_size, 1])
+
+        s = multiply_tensors(
+                    multiply_tensors(question_rnn_outputs,
+                              W_question) # size = [batch_size, Q, rnn_size]
+                    + tf.squeeze(tf.matmul(W_param, V_param)) # size = [rnn_size]
+                    , v) # size = [batch_size, Q, 1]
+        a = tf.nn.softmax(s, dim=1) # size = [batch_size, Q, 1]
+        reduced_sum = tf.reduce_sum(
+                  a * question_rnn_outputs # size = [batch_size, Q, W]
+                  , axis=1) # size = [batch_size, W]
+        if not reduce_size:
+            return reduced_sum
+        W_reduce_size = tf.get_variable("W_reduce_size",
+            dtype=tf.float32, shape=[W, options.rnn_size])
+        return tf.matmul(reduced_sum, W_reduce_size)
+
 def create_multi_rnn_cell(options, scope, keep_prob, num_rnn_layers=None, layer_size=None):
     num_rnn_layers = options.num_rnn_layers if num_rnn_layers is None else num_rnn_layers
     layer_size = options.rnn_size if layer_size is None else layer_size
@@ -42,7 +78,7 @@ def _get_or_create_attention_variables(options, attention_input, input_dim,
         bp = tf.get_variable("bp", shape=[1, options.rnn_size])
         b = tf.get_variable("b", shape=[1])
         match_lstm_cell = create_multi_rnn_cell(options, "match_lstm_birnn_cell", keep_prob, num_rnn_layers=num_rnn_layers)
-        WqHq = multiply_3d_and_2d_tensor(attention_input, Wq) # shape = [batch_size, max_qst_length, rnn_size]
+        WqHq = multiply_tensors(attention_input, Wq) # shape = [batch_size, max_qst_length, rnn_size]
         return {
             "W_gate": W_gate,
             "Wq": Wq,
@@ -139,7 +175,7 @@ def _build_match_lstm(options, batch_size, lstm_cell,
             Eq += tf.matmul(s, Wr) # hidden_state * matrix
     Eq += bp
     G = tf.tanh(WqHq + tf.reshape(Eq, [batch_size, 1, options.rnn_size])) # size = [batch_size, attention_length, rnn_size]
-    wG = tf.squeeze(multiply_3d_and_2d_tensor(G, w)) # size = [batch_size, attention_length]
+    wG = tf.squeeze(multiply_tensors(G, w)) # size = [batch_size, attention_length]
     alpha = tf.nn.softmax(wG + b) # size = [batch_size, attention_length]
     Yalpha = tf.reshape(
                 tf.matmul(tf.reshape(alpha, [batch_size, 1, -1]), attention_inputs)

@@ -3,43 +3,36 @@
 
 import tensorflow as tf
 
-def multiply_3d_and_2d_tensor(tensor_3d, tensor_2d):
-    '''Multiplies tensors of shapes [A, B, C] and [C, D].
+def multiply_tensors(tensor1, tensor2):
+    """Multiplies two tensors in a matrix-like multiplication based on the
+       last dimension of the first tensor and first dimension of the second
+       tensor.
 
        Inputs:
-            tensor_3d: A 3D tensor of size [A, B, C].
-            tensor_2d: A 2D tensor of size [C, D].
-       Outputs:
-            A tensor of size [A, B, D] that is the result of
-            multiplying the 2D tensor with each batch element of the 3D
-            tensor.
-    '''
-    assert len(tensor_3d.get_shape()) == 3
-    assert len(tensor_2d.get_shape()) == 2
-    sh = tf.shape(tensor_3d)
-    batch_size, A, B = sh[0], sh[1], sh[2]
-    reshaped_3d = tf.reshape(tensor_3d, [batch_size * A, B])
-    mult = tf.matmul(reshaped_3d, tensor_2d)
-    return tf.reshape(mult, [batch_size, A, -1])
+            tensor1: A tensor of shape [a, b, c, .., x]
+            tensor2: A tensor of shape [x, d, e, f, ...]
 
-def multiply_3d_and_3d_tensor(tensor_a, tensor_b):
-    '''Multiplies tensors of shapes [A, B, C] and [C, D, E].
-
-       Inputs:
-            tensor_3d: A 3D tensor of size [A, B, C].
-            tensor_3d: A 3D tensor of size [C, D, E].
        Outputs:
-            A tensor of size [A, B, D, E] that is the result of
-            resizing the tensors as if it was a single matrix product
-            [A * B, C] . [C, D * E].
-    '''
-    assert len(tensor_a.get_shape()) == 3
-    assert len(tensor_b.get_shape()) == 3
-    shape_a = tf.shape(tensor_a)
-    shape_b = tf.shape(tensor_b)
-    A, B, C = shape_a[0], shape_a[1], shape_a[2]
-    D, E = shape_b[1], shape_b[2]
-    reshaped_a = tf.reshape(tensor_a, [A * B, C])
-    reshaped_b = tf.reshape(tensor_b, [C, D * E])
-    mult = tf.matmul(reshaped_a, reshaped_b)
-    return tf.reshape(mult, [A, B, D, E])
+            A tensor of shape [a, b, c, ..., d, e, f, ...]
+    """
+    sh1 = tf.shape(tensor1)
+    sh2 = tf.shape(tensor2)
+    len_sh1 = len(tensor1.get_shape())
+    len_sh2 = len(tensor2.get_shape())
+    prod1 = tf.constant(1, dtype=tf.int32)
+    sh1_list = []
+    for z in range(len_sh1 - 1):
+        sh1_z = sh1[z]
+        prod1 *= sh1_z
+        sh1_list.append(sh1_z)
+    prod2 = tf.constant(1, dtype=tf.int32)
+    sh2_list = []
+    for z in range(len_sh2 - 1):
+        sh2_z = sh2[len_sh2 - 1 - z]
+        prod2 *= sh2_z
+        sh2_list.append(sh2_z)
+    reshape_1 = tf.reshape(tensor1, [prod1, sh1[len_sh1 - 1]])
+    reshape_2 = tf.reshape(tensor2, [sh2[0], prod2])
+    result = tf.reshape(tf.matmul(reshape_1, reshape_2), sh1_list + sh2_list)
+    assert len(result.get_shape()) == len_sh1 + len_sh2 - 2
+    return result

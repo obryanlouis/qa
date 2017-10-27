@@ -1,4 +1,4 @@
-"""Fucntions for dealing with remote model training and evaluation.
+"""Functions for dealing with remote model training and evaluation.
 """
 
 def update_remote_options(options):
@@ -6,6 +6,6 @@ def update_remote_options(options):
     # option here.
     options.use_s3 = True
     options.num_gpus = 1 # Update as needed
-    options.batch_size = 60
+    options.batch_size = 20
     options.use_fake_dataset = False
     options.verbose_logging = False

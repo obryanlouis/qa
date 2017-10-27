@@ -35,6 +35,8 @@ class Evaluator:
     def evaluate(self):
         if self.options.use_s3:
             self.s3 = boto3.resource('s3')
+        if not os.path.exists(self.options.checkpoint_dir):
+            os.makedirs(self.options.checkpoint_dir)
 
         self.sq_dataset = create_sq_dataset(self.options)
         with tf.Graph().as_default(), tf.device('/cpu:0'):
@@ -48,7 +50,8 @@ class Evaluator:
             maybe_print_model_parameters(self.options)
             self.tf_dataset.setup_with_tf_session(self.session)
 
-            dev_em, dev_f1 = evaluate_dev(self.session,
+            eval_fn = evaluate_dev_and_visualize if self.options.visualize_evaluated_results else evaluate_dev
+            dev_em, dev_f1 = eval_fn(self.session,
                 self.model_builder.get_towers(), self.sq_dataset, self.options,
                 self.tf_dataset)
             print("Dev Em:", dev_em, "Dev F1:", dev_f1)

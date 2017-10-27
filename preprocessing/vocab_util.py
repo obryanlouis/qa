@@ -23,6 +23,8 @@ class Vocab:
         max_id = max(char_to_position.values())
         self.CHAR_PAD_ID = max_id + 1
         self.CHAR_UNK_ID = self.CHAR_PAD_ID + 1
+    def is_pad_word_id(self, word_id):
+        return word_id == self.PAD_ID
     def get_vocab_size_without_pad_or_unk(self):
         return len(self._word_to_position)
     def get_vocab_size_including_pad_and_unk(self):

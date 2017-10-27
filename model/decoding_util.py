@@ -6,39 +6,6 @@ import tensorflow as tf
 from model.tf_util import *
 from model.rnn_util import *
 
-def _get_question_attention(options, question_rnn_outputs):
-    '''Gets an attention pooling vector of the question to be used as the
-       initial input to the answer recurrent network.
-
-       Inputs:
-            question_rnn_outputs: Tensor of the question rnn outputs of
-                size [batch_size, Q, 2 * rnn_size].
-       Output:
-            A tensor of size [batch_size, rnn_size].
-    '''
-    with tf.variable_scope("decode_question_attention"):
-        sh = tf.shape(question_rnn_outputs)
-        batch_size = sh[0]
-        Q = sh[1]
-
-        W = 2 * options.rnn_size
-        W_question = tf.get_variable("W", dtype=tf.float32, shape=[W, options.rnn_size])
-        W_param = tf.get_variable("W_param", dtype=tf.float32, shape=[options.rnn_size, options.rnn_size])
-        V_param = tf.get_variable("V_param", dtype=tf.float32, shape=[options.rnn_size, 1])
-        v = tf.get_variable("v", dtype=tf.float32, shape=[options.rnn_size, 1])
-        W_reduce_size = tf.get_variable("W_reduce_size", dtype=tf.float32, shape=[W, options.rnn_size])
-
-        s = multiply_3d_and_2d_tensor(
-                    multiply_3d_and_2d_tensor(question_rnn_outputs,
-                              W_question) # size = [batch_size, Q, rnn_size]
-                    + tf.squeeze(tf.matmul(W_param, V_param)) # size = [rnn_size]
-                    , v) # size = [batch_size, Q, 1]
-        a = tf.nn.softmax(s, dim=1) # size = [batch_size, Q, 1]
-        reduced_sum = tf.reduce_sum(
-                  a * question_rnn_outputs # size = [batch_size, Q, W]
-                  , axis=1) # size = [batch_size, W]
-        return tf.matmul(reduced_sum, W_reduce_size)
-
 def decode_answer_pointer_boundary(options, batch_size, keep_prob, spans,
         attention_outputs, sq_dataset, question_outputs):
     with tf.variable_scope("answer_pointer"):
@@ -51,12 +18,13 @@ def decode_answer_pointer_boundary(options, batch_size, keep_prob, spans,
         c = tf.get_variable("c", shape=[1])
         answer_lstm_cell = create_multi_rnn_cell(options, "answer_lstm",
                 keep_prob)
-    initial_state = _get_question_attention(options, question_outputs)
+    initial_state = get_question_attention(options, question_outputs,
+        reduce_size=True)
     answer_pointer_state = (initial_state,) * options.num_rnn_layers
     loss = tf.constant(0.0, dtype=tf.float32)
     start_span_probs = None
     end_span_probs = None
-    HrV = multiply_3d_and_2d_tensor(attention_outputs, V) # size = [batch_size, max_ctx_length, rnn_size]
+    HrV = multiply_tensors(attention_outputs, V) # size = [batch_size, max_ctx_length, rnn_size]
     v_reshaped = tf.reshape(v, [1, -1, 1]) # size = [1, rnn_size, 1]
     v_tiled = tf.tile(v_reshaped, [batch_size, 1, 1]) # size = [batch_size, rnn_size, 1]
     for z in range(2):

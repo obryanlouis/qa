@@ -1,8 +1,20 @@
 Question Answering on SQuAD
 ===========================
-This project implements a model that trains on the Stanford Question Answering Dataset. I primarily made this for my own education, but the code could be used as a starting point for a research project that improves the results, or uses the model for a real world application. The Match LSTM in this implementation achieves an exact match score of ~59.5% and f1 score of ~69.5% after 10-20 hours of training. It is based on the model described in [Wang et. al](https://arxiv.org/pdf/1608.07905.pdf) with a few other ideas borrowed from other papers (including character-level embeddings, self-matching and gated attention, word-in-question and word-in-context features).
+This project implements models that train on the Stanford Question Answering Dataset. I primarily made this for my own education, but the code could be used as a starting point for another project.
 
 Code is written in TensorFlow and uses AWS S3 storage for model checkpointing and data storage (optional).
+
+
+Results
+------------
+|Model           | Dev Em            | Dev F1   |
+| -------------- |:-----------------:| -------- |
+|Match LSTM      | 59.4%             | 69.5%    |
+|Rnet            | 61.4%             | 71.7%    |
+|Mnemonic reader | 62.1%             | 73.4%    |
+
+All results are for a single model rather than an ensemble. I didn't train all models for a complete 10 epochs and there may be bugs or unoptimized hyperparameters in my implementation.
+
 
 Requirements
 -------------
@@ -69,18 +81,6 @@ tensorboard --logdir=log
 Making changes
 --------------
 
-#### My workflow
-
-I use an EC2 instance to train or test my models, with these steps:
-1. Update the code.
-2. Start a GPU EC2 instance. I recommend a spot request for a `p2.2xlarge` instance. I load an AMI that has the NVIDIA Toolkit and python modules already installed.
-3. Zip the files (`./zip.sh` from the top level directory).
-4. Copy the files to EC2 instance: `scp -i /path/to/key.pem files.tar.gz ubuntu@<INSTANCE DNS>:~/`
-5. SSH to the instance: `ssh -i /path/to/key.pem ubuntu@<INSTANCE DNS>`
-6. Unzip the files: `tar -xzvf files.tar.gz`
-7. Run the "remote" training or evaluation steps from above in a `tmux` terminal.
-8. If training, start another `tmux` terminal for tensorboard (make sure your tensorboard port is open).
-
 #### Directory structure
 
     datasets/
@@ -105,4 +105,16 @@ I use an EC2 instance to train or test my models, with these steps:
         Evaluates the model on the Dev dataset
     evaluate_remote.py
         Same as evaluate_local.py, but overrides some flags to run on EC2 GPUs - mostly for convenience
+
+#### My workflow
+
+I use an EC2 instance to train or test my models, with these steps:
+1. Update the code.
+2. Start a GPU EC2 instance. `p2.xlarge` and `p3.2xlarge` instances work OK. I load an AMI that has the NVIDIA Toolkit and python modules already installed.
+3. Zip the files (`./zip.sh` from the top level directory).
+4. Copy the files to EC2 instance: `scp -i /path/to/key.pem files.tar.gz ubuntu@<INSTANCE DNS>:~/`. This is a small amount of data since model weights and training data are copied from S3.
+5. SSH to the instance: `ssh -i /path/to/key.pem ubuntu@<INSTANCE DNS>`
+6. Unzip the files: `tar -xzvf files.tar.gz`
+7. Run the "remote" training or evaluation steps from above in a `tmux` terminal.
+8. If training, start another `tmux` terminal for tensorboard (make sure your tensorboard port is open).
 
