@@ -96,6 +96,12 @@ f.DEFINE_integer("num_interactive_alignment_hops", 2, "Number of hops for " +
         "interactive alignment (if the model uses it).")
 f.DEFINE_integer("num_memory_answer_pointer_hops", 2, "Number of hops for " +
         "the memory answer pointer model (if the model uses it).")
+f.DEFINE_boolean("use_pos_tagging_feature", True, "Whether to use pos-tagging " +
+        "as an extra feature to be fed into the model.")
+f.DEFINE_integer("pos_embedding_size", 10, "Size of POS-tagging embedding")
+f.DEFINE_boolean("use_ner_feature", True, "Whether to use named entity " +
+        "recognition as an extra feature to be fed into the model.")
+f.DEFINE_integer("ner_embedding_size", 10, "Size of NER embedding")
 
 def get_options_from_flags():
     return tf.app.flags.FLAGS

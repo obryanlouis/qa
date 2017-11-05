@@ -13,7 +13,11 @@ class RawTrainingData():
                 context_chars,
                 question_chars,
                 question_ids,
-                question_ids_to_ground_truths):
+                question_ids_to_ground_truths,
+                context_pos,
+                question_pos,
+                context_ner,
+                question_ner):
         self.list_contexts = list_contexts
         self.list_word_in_question = list_word_in_question
         self.list_questions = list_questions
@@ -24,3 +28,7 @@ class RawTrainingData():
         self.question_chars = question_chars
         self.question_ids = question_ids
         self.question_ids_to_ground_truths = question_ids_to_ground_truths
+        self.context_pos = context_pos
+        self.question_pos = question_pos
+        self.context_ner = context_ner
+        self.question_ner = question_ner

@@ -59,8 +59,11 @@ def _add_char_embedding_inputs(scope, char_embedding, char_data, options,
     chars_input = _run_char_birnn(scope, chars_embedded, options, sq_dataset)
     inputs_list.append(chars_input)
 
+def _cast_int32(tensor):
+    return tf.cast(tensor, dtype=tf.int32)
+
 def create_model_inputs(words_placeholder, ctx, qst, ctx_chars, qst_chars,
-        options, wiq, wic, sq_dataset):
+        options, wiq, wic, sq_dataset, ctx_pos, qst_pos, ctx_ner, qst_ner):
     with tf.device("/cpu:0"):
         with tf.variable_scope("model_inputs"):
             v_wiq = tf.get_variable("v_wiq", shape=[sq_dataset.word_vec_size])
@@ -85,6 +88,14 @@ def create_model_inputs(words_placeholder, ctx, qst, ctx_chars, qst_chars,
                         ctx_chars, options, ctx_inputs_list, sq_dataset)
                 _add_char_embedding_inputs("qst_embedding", char_embedding,
                         qst_chars, options, qst_inputs_list, sq_dataset)
+            if options.use_pos_tagging_feature:
+                pos_embedding = tf.get_variable("pos_embedding", shape=[2**8, options.pos_embedding_size])
+                ctx_inputs_list.append(tf.nn.embedding_lookup(pos_embedding, _cast_int32(ctx_pos)))
+                qst_inputs_list.append(tf.nn.embedding_lookup(pos_embedding, _cast_int32(qst_pos)))
+            if options.use_ner_feature:
+                ner_embedding = tf.get_variable("ner_embedding", shape=[2**8, options.ner_embedding_size])
+                ctx_inputs_list.append(tf.nn.embedding_lookup(ner_embedding, _cast_int32(ctx_ner)))
+                qst_inputs_list.append(tf.nn.embedding_lookup(ner_embedding, _cast_int32(qst_ner)))
             if len(ctx_inputs_list) == 1:
                 return ctx_inputs_list[0], qst_inputs_list[0]
             else:

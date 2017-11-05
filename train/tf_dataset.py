@@ -11,12 +11,17 @@ SPN_KEY = "spn"
 WIQ_KEY = "wiq"
 WIC_KEY = "wic"
 DATA_INDEX_KEY = "data_index"
+CTX_POS_KEY = "ctx_pos"
+QST_POS_KEY = "qst_pos"
+CTX_NER_KEY = "ctx_ner"
+QST_NER_KEY = "qst_ner"
 
 class TfIteratorWrapper():
     def __init__(self, ctx_iterator, qst_iterator, ctx_char_iterator,
             qst_char_iterator, spn_iterator,
             data_index_iterator, word_in_question_iterator,
-            word_in_context_iterator):
+            word_in_context_iterator, ctx_pos_iterator, qst_pos_iterator,
+            ctx_ner_iterator, qst_ner_iterator):
         print("Creating TensorFlow Datasets and iterators")
         self.ctx = ctx_iterator
         self.qst = qst_iterator
@@ -26,6 +31,10 @@ class TfIteratorWrapper():
         self.data_index = data_index_iterator
         self.wiq = word_in_question_iterator
         self.wic = word_in_context_iterator
+        self.ctx_pos = ctx_pos_iterator
+        self.qst_pos = qst_pos_iterator
+        self.ctx_ner = ctx_ner_iterator
+        self.qst_ner = qst_ner_iterator
 
 class TfDataset():
     def __init__(self, options, squad_dataset):
@@ -72,6 +81,10 @@ class TfDataset():
             SPN_KEY: self._make_ds(np_dataset.spn, placeholder_dict),
             WIQ_KEY: self._make_ds(np_dataset.word_in_question, placeholder_dict),
             WIC_KEY: self._make_ds(np_dataset.word_in_context, placeholder_dict),
+            CTX_POS_KEY: self._make_ds(np_dataset.context_pos, placeholder_dict),
+            QST_POS_KEY: self._make_ds(np_dataset.question_pos, placeholder_dict),
+            CTX_NER_KEY: self._make_ds(np_dataset.context_ner, placeholder_dict),
+            QST_NER_KEY: self._make_ds(np_dataset.question_ner, placeholder_dict),
             }) \
             .shuffle(buffer_size=self.options.dataset_buffer_size)
         iterator = zip_ds.make_initializable_iterator()
@@ -91,4 +104,6 @@ class TfDataset():
             return TfIteratorWrapper(next_elem[CTX_KEY], next_elem[QST_KEY],
                 next_elem[CTX_CHAR_KEY], next_elem[QST_CHAR_KEY],
                 next_elem[SPN_KEY], next_elem[DATA_INDEX_KEY],
-                next_elem[WIQ_KEY], next_elem[WIC_KEY])
+                next_elem[WIQ_KEY], next_elem[WIC_KEY],
+                next_elem[CTX_POS_KEY], next_elem[QST_POS_KEY],
+                next_elem[CTX_NER_KEY], next_elem[QST_NER_KEY])

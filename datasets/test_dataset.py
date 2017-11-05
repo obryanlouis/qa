@@ -30,6 +30,10 @@ class TestDataset:
         self.qst_chars = np.random.randint(0, vocab.CHAR_PAD_ID,
             size=(NUM_SAMPLES, QST_LEN, max_word_len), dtype=np.uint8)
         self.question_ids = self.data_index
+        self.context_pos  = np.random.randint(0, 2**7, size=(NUM_SAMPLES, CTX_LEN), dtype=np.int8)
+        self.question_pos = np.random.randint(0, 2**7, size=(NUM_SAMPLES, QST_LEN), dtype=np.int8)
+        self.context_ner  = np.random.randint(0, 2**7, size=(NUM_SAMPLES, CTX_LEN), dtype=np.int8)
+        self.question_ner = np.random.randint(0, 2**7, size=(NUM_SAMPLES, QST_LEN), dtype=np.int8)
 
     def get_question_sentence(self, example_idx):
         return find_question_sentence(self.qst, self.vocab, example_idx)

@@ -7,6 +7,7 @@ import preprocessing.constants as constants
 import re
 import subprocess
 
+from preprocessing.tokenized_word import *
 from pycorenlp import StanfordCoreNLP
 
 class StanfordCoreNlpCommunication():
@@ -18,7 +19,7 @@ class StanfordCoreNlpCommunication():
     def start_server(self):
         command = [ "java", "-cp",
         os.path.join(self.data_dir,
-                "stanford-corenlp-full-2017-06-09/stanford-corenlp-3.8.0.jar"),
+                "stanford-corenlp-full-2017-06-09/*"),
         "edu.stanford.nlp.pipeline.StanfordCoreNLPServer", "-port", constants.STANFORD_CORENLP_PORT,
         "-quiet"]
         self.server_process = subprocess.Popen(command,
@@ -42,40 +43,25 @@ class StanfordCoreNlpCommunication():
             print("Progress", i, "out of", len(text_list))
         return output_list
 
+    def _get_tokenized_words(self, annotation):
+        tokens = []
+        for sentence in annotation["sentences"]:
+            for token in sentence["tokens"]:
+                tokens.append(TokenizedWord(
+                    token["word"],
+                    token["characterOffsetBegin"],
+                    token["characterOffsetEnd"],
+                    token["ner"],
+                    token["pos"]))
+        return tokens
+
     def tokenize_text(self, text):
         """Input: A string
 
-           Output: A json object with the NLP response, including the tokenized
-           text and other context.
-
-           Example input: "Sentence 1."
-           output:
-            [
-                {
-                    "characterOffsetBegin": 0,
-                    "characterOffsetEnd": 8,
-                    "index": -1,
-                    "originalText": "Sentence",
-                    "word": "Sentence"
-                },
-                {
-                    "characterOffsetBegin": 9,
-                    "characterOffsetEnd": 10,
-                    "index": -1,
-                    "originalText": "1",
-                    "word": "1"
-                },
-                {
-                    "characterOffsetBegin": 10,
-                    "characterOffsetEnd": 11,
-                    "index": -1,
-                    "originalText": ".",
-                    "word": "."
-                }
-            ]
+           Output: A list of TokenizedWord's from the text.
         """
         annotate = self.nlp.annotate(text, properties={
-            'annotators': 'tokenize',
+            'annotators': 'tokenize,pos,ner',
             'outputFormat': 'json',
             'tokenize.language': 'English',
             'splitHyphenated': True,
@@ -84,4 +70,4 @@ class StanfordCoreNlpCommunication():
         if isinstance(annotate, str):
             print("Some internal failure happened when using Stanford CoreNLP")
             return None
-        return annotate["tokens"]
+        return self._get_tokenized_words(annotate)

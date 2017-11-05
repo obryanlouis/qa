@@ -36,6 +36,15 @@ SAVE_FILE_NAMES = {
     constants.TRAIN_QUESTION_IDS_TO_GND_TRUTHS_FILE,
     constants.DEV_QUESTION_IDS_FILE,
     constants.DEV_QUESTION_IDS_TO_GND_TRUTHS_FILE,
+    # Save the POS and NER tags
+    constants.TRAIN_CONTEXT_POS_FILE,
+    constants.TRAIN_QUESTION_POS_FILE,
+    constants.TRAIN_CONTEXT_NER_FILE,
+    constants.TRAIN_QUESTION_NER_FILE,
+    constants.DEV_CONTEXT_POS_FILE,
+    constants.DEV_QUESTION_POS_FILE,
+    constants.DEV_CONTEXT_NER_FILE,
+    constants.DEV_QUESTION_NER_FILE,
 }
 
 def already_uploaded_s3_files(options, bucket):

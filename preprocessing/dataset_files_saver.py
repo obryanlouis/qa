@@ -68,3 +68,18 @@ class DatasetFilesSaver():
         print("Saving question ids to ground truths dict")
         save_pickle_file(self.files_wrapper.question_ids_to_ground_truths_file_name,
             self.data.question_ids_to_ground_truths)
+
+        print("Saving POS and NER tags")
+        ctx_pos_np_arr = np.array(self._create_padded_array(self.data.context_ner,
+            self.max_ctx_length, 0), dtype=np.int8)
+        np.save(self.files_wrapper.context_pos_file_name, ctx_pos_np_arr)
+        qst_pos_np_arr = np.array(self._create_padded_array(self.data.question_ner,
+            self.max_qst_length, 0), dtype=np.int8)
+        np.save(self.files_wrapper.question_pos_file_name, qst_pos_np_arr)
+
+        ctx_ner_np_arr = np.array(self._create_padded_array(self.data.context_ner,
+            self.max_ctx_length, 0), dtype=np.int8)
+        np.save(self.files_wrapper.context_ner_file_name, ctx_ner_np_arr)
+        qst_ner_np_arr = np.array(self._create_padded_array(self.data.question_ner,
+            self.max_qst_length, 0), dtype=np.int8)
+        np.save(self.files_wrapper.question_ner_file_name, qst_ner_np_arr)

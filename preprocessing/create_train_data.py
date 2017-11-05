@@ -13,6 +13,7 @@ from preprocessing.dataset_files_wrapper import *
 from preprocessing.file_util import *
 from preprocessing.raw_training_data import *
 from preprocessing.stanford_corenlp_util import StanfordCoreNlpCommunication
+from preprocessing.string_category import *
 from preprocessing.vocab_util import get_vocab
 
 # Note: Some of the training/dev data seems to be inaccurate. This code
@@ -26,11 +27,42 @@ class DataParser():
         self.vocab = None
         self.nlp = None
         self.question_id = 0
+        self.ner_categories = StringCategory()
+        self.pos_categories = StringCategory()
+
+    def _parse_data_from_tokens_list(self, tokens_list):
+        """Input: A list of TokenizedWord.
+
+           Ouptut: (vocab_ids_list, words_list, vocab_ids_set, char_lists,
+                   pos_list, ner_list)
+        """
+        vocab_ids_list = []
+        words_list = []
+        vocab_ids_set = set()
+        char_lists = []
+        pos_list = []
+        ner_list = []
+        for zz in range(len(tokens_list)):
+            token = tokens_list[zz]
+            word = token.word
+            vocab_id = self.vocab.get_id_for_word(word)
+            vocab_ids_list.append(vocab_id)
+            vocab_ids_set.add(vocab_id)
+            words_list.append(word)
+            char_list = []
+            for char in word:
+                char_list.append(self.vocab.get_id_for_char(char))
+            char_lists.append(char_list)
+            pos_list.append(self.pos_categories.get_id_for_word(token.pos))
+            ner_list.append(self.ner_categories.get_id_for_word(token.ner))
+        return vocab_ids_list, words_list, vocab_ids_set, char_lists, \
+            pos_list, ner_list
 
     def _maybe_add_samples(self, tok_context, tok_question, qa,
             ctx_offset_dict, ctx_end_offset_dict, list_contexts, list_word_in_question,
             list_questions, list_word_in_context, spans, num_values, text_tokens,
             question_ids, question_ids_to_ground_truths, context_chars, question_chars,
+            context_pos, question_pos, context_ner, question_ner,
             is_dev):
         first_answer = True
         for answer in qa["answers"]:
@@ -45,8 +77,8 @@ class DataParser():
                 # If so, find the smallest surrounding text instead.
                 for z in range(len(tok_context)):
                     tok = tok_context[z]
-                    st = tok["characterOffsetBegin"]
-                    end = tok["characterOffsetEnd"]
+                    st = tok.start
+                    end = tok.end
                     if st <= answer_start and answer_start <= end:
                         tok_start = tok
                     elif tok_start is not None:
@@ -70,43 +102,31 @@ class DataParser():
             first_answer = False
 
             spans.append([tok_start_idx, tok_end_idx])
-            ctx_list = []
-            list_contexts.append(ctx_list)
-            ctx_word_list = []
-            text_tokens.append(ctx_word_list)
             question_ids.append(self.question_id)
-            ctx_word_ids = set()
-            qst_word_ids = set()
-            ctx_char_list = []
-            context_chars.append(ctx_char_list)
-            for zz in range(len(tok_context)):
-                ctx_word = tok_context[zz]["word"]
-                vocab_id = self.vocab.get_id_for_word(ctx_word)
-                ctx_list.append(vocab_id)
-                ctx_word_list.append(ctx_word)
-                ctx_word_ids.add(vocab_id)
-                word_char_list = []
-                ctx_char_list.append(word_char_list)
-                for char in ctx_word:
-                    word_char_list.append(self.vocab.get_id_for_char(char))
-            qst_list = []
-            list_questions.append(qst_list)
-            qst_char_list = []
-            question_chars.append(qst_char_list)
-            for zz in range(len(tok_question)):
-                question_word = tok_question[zz]["word"]
-                word_id = self.vocab.get_id_for_word(question_word)
-                qst_list.append(self.vocab.get_id_for_word(question_word))
-                qst_word_ids.add(word_id)
-                word_char_list = []
-                qst_char_list.append(word_char_list)
-                for char in question_word:
-                    word_char_list.append(self.vocab.get_id_for_char(char))
-            word_in_question_list = [1 if word_id in qst_word_ids else 0 for word_id in ctx_list]
-            word_in_context_list = [1 if word_id in ctx_word_ids else 0 for word_id in qst_list]
+
+            ctx_vocab_ids_list, ctx_words_list, ctx_vocab_ids_set, \
+                ctx_char_lists, ctx_pos_list, ctx_ner_list = \
+                self._parse_data_from_tokens_list(tok_context)
+            text_tokens.append(ctx_words_list)
+            context_chars.append(ctx_char_lists)
+            list_contexts.append(ctx_vocab_ids_list)
+            context_pos.append(ctx_pos_list)
+            context_ner.append(ctx_ner_list)
+
+            qst_vocab_ids_list, qst_words_list, qst_vocab_ids_set, \
+                qst_char_lists, qst_pos_list, qst_ner_list = \
+                self._parse_data_from_tokens_list(tok_question)
+            question_chars.append(qst_char_lists)
+            list_questions.append(qst_vocab_ids_list)
+            question_pos.append(qst_pos_list)
+            question_ner.append(qst_ner_list)
+
+            word_in_question_list = [1 if word_id in qst_vocab_ids_set else 0 for word_id in ctx_vocab_ids_list]
+            word_in_context_list = [1 if word_id in ctx_vocab_ids_set else 0 for word_id in qst_vocab_ids_list]
             list_word_in_question.append(word_in_question_list)
             list_word_in_context.append(word_in_context_list)
-            print("Value", self.value_idx, "of", num_values, "percent done", 100 * float(self.value_idx) / float(num_values), end="\r")
+            print("Value", self.value_idx, "of", num_values, "percent done",
+                  100 * float(self.value_idx) / float(num_values), end="\r")
             self.value_idx += 1
 
     def _get_num_data_values(self, dataset):
@@ -155,6 +175,10 @@ class DataParser():
             question_ids_to_ground_truths = {}
             context_chars = []
             question_chars = []
+            context_pos = []
+            question_pos = []
+            context_ner = []
+            question_ner = []
             self.value_idx = 0
             for article in dataset:
                 for paragraph in article["paragraphs"]:
@@ -164,10 +188,10 @@ class DataParser():
                         continue
                     ctx_offset_dict = {}
                     for tok in tok_context:
-                        ctx_offset_dict[tok["characterOffsetBegin"]] = tok
+                        ctx_offset_dict[tok.start] = tok
                     ctx_end_offset_dict = {}
                     for tok in tok_context:
-                        ctx_end_offset_dict[tok["characterOffsetEnd"]] = tok
+                        ctx_end_offset_dict[tok.end] = tok
                     for qa in paragraph["qas"]:
                         self.question_id += 1
                         question = qa["question"]
@@ -175,10 +199,15 @@ class DataParser():
                         if tok_question is None:
                             continue
                         found_answer_in_context = False
-                        found_answer_in_context = self._maybe_add_samples(tok_context, tok_question, qa, ctx_offset_dict,
-                                ctx_end_offset_dict, list_contexts, list_word_in_question, list_questions, list_word_in_context,
-                                spans, num_values, text_tokens, question_ids, question_ids_to_ground_truths, context_chars, question_chars,
-                                is_dev)
+                        found_answer_in_context = self._maybe_add_samples(
+                                tok_context, tok_question, qa, ctx_offset_dict,
+                                ctx_end_offset_dict, list_contexts,
+                                list_word_in_question, list_questions,
+                                list_word_in_context, spans, num_values,
+                                text_tokens, question_ids,
+                                question_ids_to_ground_truths, context_chars,
+                                question_chars, context_pos, question_pos,
+                                context_ner, question_ner, is_dev)
             print("")
             spans = np.array(spans[:self.value_idx], dtype=np.int32)
             return RawTrainingData(
@@ -191,7 +220,11 @@ class DataParser():
                 context_chars = context_chars,
                 question_chars = question_chars,
                 question_ids = question_ids,
-                question_ids_to_ground_truths = question_ids_to_ground_truths)
+                question_ids_to_ground_truths = question_ids_to_ground_truths,
+                context_pos = context_pos,
+                question_pos = question_pos,
+                context_ner = context_ner,
+                question_ner = question_ner)
 
     def _create_padded_array(self, list_of_py_arrays, max_len, pad_value):
         return [py_arr + [pad_value] * (max_len - len(py_arr)) for py_arr in list_of_py_arrays]
@@ -222,6 +255,8 @@ class DataParser():
         train_raw_data = self._create_train_data_internal(
             constants.TRAIN_SQUAD_FILE, is_dev=False)
         self.nlp.stop_server()
+        print("Num NER categories", self.ner_categories.get_num_categories())
+        print("Num POS categories", self.pos_categories.get_num_categories())
 
         max_context_length = max(
                 max([len(x) for x in train_raw_data.list_contexts]),

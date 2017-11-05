@@ -25,6 +25,10 @@ class BaseModel:
         self.data_index_iterator = tf_iterators.data_index
         self.wiq_iterator = tf_iterators.wiq
         self.wic_iterator = tf_iterators.wic
+        self.ctx_pos_iterator = tf_iterators.ctx_pos
+        self.qst_pos_iterator = tf_iterators.qst_pos
+        self.ctx_ner_iterator = tf_iterators.ctx_ner
+        self.qst_ner_iterator = tf_iterators.qst_ner
         self.ctx_inputs = None
         self.qst_inputs = None
 
@@ -58,7 +62,9 @@ class BaseModel:
                 self.qst_iterator, self.ctx_chars_iterator,
                 self.qst_chars_iterator,
                 self.options, self.wiq_iterator,
-                self.wic_iterator, self.sq_dataset)
+                self.wic_iterator, self.sq_dataset,
+                self.ctx_pos_iterator, self.qst_pos_iterator,
+                self.ctx_ner_iterator, self.qst_ner_iterator)
 
     def get_start_spans(self):
         return tf.argmax(self.get_start_span_probs(), axis=1)

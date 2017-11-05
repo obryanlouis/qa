@@ -17,7 +17,11 @@ class DatasetFilesWrapper():
                  context_chars_file_name,
                  question_chars_file_name,
                  question_ids_file_name,
-                 question_ids_to_ground_truths_file_name):
+                 question_ids_to_ground_truths_file_name,
+                 context_pos_file_name,
+                 question_pos_file_name,
+                 context_ner_file_name,
+                 question_ner_file_name):
         self._files = []
         self.data_dir = data_dir
         self.text_tokens_file_name = self._add_file(text_tokens_file_name)
@@ -34,6 +38,10 @@ class DatasetFilesWrapper():
         self.question_ids_file_name = self._add_file(question_ids_file_name)
         self.question_ids_to_ground_truths_file_name = \
             self._add_file(question_ids_to_ground_truths_file_name)
+        self.context_pos_file_name = self._add_file(context_pos_file_name)
+        self.question_pos_file_name = self._add_file(question_pos_file_name)
+        self.context_ner_file_name = self._add_file(context_ner_file_name)
+        self.question_ner_file_name = self._add_file(question_ner_file_name)
 
     def _add_file(self, file_name):
         full_file_name = os.path.join(self.data_dir, file_name)
@@ -56,7 +64,11 @@ class DatasetFilesWrapper():
             context_chars_file_name=constants.TRAIN_CONTEXT_CHAR_FILE,
             question_chars_file_name=constants.TRAIN_QUESTION_CHAR_FILE,
             question_ids_file_name=constants.TRAIN_QUESTION_IDS_FILE,
-            question_ids_to_ground_truths_file_name=constants.TRAIN_QUESTION_IDS_TO_GND_TRUTHS_FILE)
+            question_ids_to_ground_truths_file_name=constants.TRAIN_QUESTION_IDS_TO_GND_TRUTHS_FILE,
+            context_pos_file_name=constants.TRAIN_CONTEXT_POS_FILE,
+            question_pos_file_name=constants.TRAIN_QUESTION_POS_FILE,
+            context_ner_file_name=constants.TRAIN_CONTEXT_NER_FILE,
+            question_ner_file_name=constants.TRAIN_QUESTION_NER_FILE)
 
     @staticmethod
     def create_dev_files_wrapper(data_dir):
@@ -71,4 +83,8 @@ class DatasetFilesWrapper():
             context_chars_file_name=constants.DEV_CONTEXT_CHAR_FILE,
             question_chars_file_name=constants.DEV_QUESTION_CHAR_FILE,
             question_ids_file_name=constants.DEV_QUESTION_IDS_FILE,
-            question_ids_to_ground_truths_file_name=constants.DEV_QUESTION_IDS_TO_GND_TRUTHS_FILE)
+            question_ids_to_ground_truths_file_name=constants.DEV_QUESTION_IDS_TO_GND_TRUTHS_FILE,
+            context_pos_file_name=constants.DEV_CONTEXT_POS_FILE,
+            question_pos_file_name=constants.DEV_QUESTION_POS_FILE,
+            context_ner_file_name=constants.DEV_CONTEXT_NER_FILE,
+            question_ner_file_name=constants.DEV_QUESTION_NER_FILE)

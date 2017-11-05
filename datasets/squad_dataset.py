@@ -8,7 +8,8 @@ from datasets.sentence_util import *
 class Dataset:
     def __init__(self, text_tokens, contexts, questions, spans, context_chars,
             question_chars, options, word_in_question, word_in_context,
-            question_ids, question_ids_to_ground_truths, vocab):
+            question_ids, question_ids_to_ground_truths, vocab,
+            context_pos, question_pos, context_ner, question_ner):
         assert len(text_tokens) == contexts.shape[0]
         assert len(text_tokens) == questions.shape[0]
         assert len(text_tokens) == spans.shape[0]
@@ -18,6 +19,10 @@ class Dataset:
         assert len(text_tokens) == word_in_context.shape[0]
         assert len(text_tokens) == question_ids.shape[0]
         assert len(text_tokens) == len(question_ids_to_ground_truths)
+        assert contexts.shape == context_pos.shape
+        assert contexts.shape == context_ner.shape
+        assert questions.shape == question_pos.shape
+        assert questions.shape == question_ner.shape
         num_dataset = len(text_tokens)
         if options.truncate_dataset_percent < 1.0:
             assert options.truncate_dataset_percent >= 0
@@ -34,6 +39,10 @@ class Dataset:
         self.question_ids = question_ids[:num_dataset]
         self.question_ids_to_ground_truths = question_ids_to_ground_truths
         self.vocab = vocab
+        self.context_pos = context_pos[:num_dataset, :options.max_ctx_length]
+        self.question_pos = question_pos[:num_dataset, :options.max_qst_length]
+        self.context_ner = context_ner[:num_dataset, :options.max_ctx_length]
+        self.question_ner = question_ner[:num_dataset, :options.max_qst_length]
         assert len(self.text_tokens) == self.ctx.shape[0]
         assert len(self.text_tokens) == self.qst.shape[0]
         assert len(self.text_tokens) == self.spn.shape[0]
@@ -42,6 +51,10 @@ class Dataset:
         assert len(self.text_tokens) == self.word_in_question.shape[0]
         assert len(self.text_tokens) == self.word_in_context.shape[0]
         assert len(self.text_tokens) == self.question_ids.shape[0]
+        assert len(self.text_tokens) == self.context_pos.shape[0]
+        assert len(self.text_tokens) == self.question_pos.shape[0]
+        assert len(self.text_tokens) == self.context_ner.shape[0]
+        assert len(self.text_tokens) == self.question_ner.shape[0]
 
     def get_question_sentence(self, example_idx):
         return find_question_sentence(self.qst, self.vocab, example_idx)
