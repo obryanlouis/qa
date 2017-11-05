@@ -4,8 +4,10 @@ This project implements models that train on the
 [Stanford Question Answering Dataset](https://rajpurkar.github.io/SQuAD-explorer/)
 (SQuAD). The SQuAD dataset is comprised of pairs of passages and questions
 given in English text where the answer to the question is a span of text in the
-passage. The project's main site has examples of some of the passages,
-questions, and answers, as well as a ranking for the existing models.
+passage. The goal of a model that trains on SQuAD is to predict the answer to
+a given passage/question pair. The project's main site has examples of some of
+the passages, questions, and answers, as well as a ranking for the
+existing models.
 
 Specifically, this project implements:
 * [Match-LSTM](https://arxiv.org/abs/1608.07905): An early end-to-end neural
