@@ -8,7 +8,10 @@ import preprocessing.constants as constants
 import time
 
 from preprocessing.char_util import *
+from preprocessing.dataset_files_saver import *
+from preprocessing.dataset_files_wrapper import *
 from preprocessing.file_util import *
+from preprocessing.raw_training_data import *
 from preprocessing.stanford_corenlp_util import StanfordCoreNlpCommunication
 from preprocessing.vocab_util import get_vocab
 
@@ -178,60 +181,27 @@ class DataParser():
                                 is_dev)
             print("")
             spans = np.array(spans[:self.value_idx], dtype=np.int32)
-            return list_contexts, list_word_in_question, list_questions, \
-                list_word_in_context, spans, text_tokens, context_chars, \
-                question_chars, question_ids, question_ids_to_ground_truths
+            return RawTrainingData(
+                list_contexts = list_contexts,
+                list_word_in_question = list_word_in_question,
+                list_questions = list_questions,
+                list_word_in_context = list_word_in_context,
+                spans = spans,
+                text_tokens = text_tokens,
+                context_chars = context_chars,
+                question_chars = question_chars,
+                question_ids = question_ids,
+                question_ids_to_ground_truths = question_ids_to_ground_truths)
 
     def _create_padded_array(self, list_of_py_arrays, max_len, pad_value):
         return [py_arr + [pad_value] * (max_len - len(py_arr)) for py_arr in list_of_py_arrays]
 
     def create_train_data(self):
-        full_train_text_tokens_file_name = os.path.join(self.data_dir, constants.TRAIN_FULL_TEXT_TOKENS_FILE)
-        full_dev_text_tokens_file_name = os.path.join(self.data_dir, constants.DEV_FULL_TEXT_TOKENS_FILE)
-        full_train_qst_file_name = os.path.join(self.data_dir, constants.TRAIN_QUESTION_FILE)
-        full_dev_qst_file_name = os.path.join(self.data_dir, constants.DEV_QUESTION_FILE)
-        full_dev_ctx_file_name = os.path.join(self.data_dir, constants.DEV_CONTEXT_FILE)
-        full_train_ctx_file_name = os.path.join(self.data_dir, constants.TRAIN_CONTEXT_FILE)
-        full_dev_span_file_name = os.path.join(self.data_dir, constants.DEV_SPAN_FILE)
-        full_train_span_file_name = os.path.join(self.data_dir, constants.TRAIN_SPAN_FILE)
+        train_files_wrapper = DatasetFilesWrapper.create_train_files_wrapper(self.data_dir)
+        dev_files_wrapper = DatasetFilesWrapper.create_dev_files_wrapper(self.data_dir)
 
-        full_train_word_in_question = os.path.join(self.data_dir, constants.TRAIN_WORD_IN_QUESTION_FILE)
-        full_dev_word_in_question = os.path.join(self.data_dir, constants.DEV_WORD_IN_QUESTION_FILE)
-        full_train_word_in_context = os.path.join(self.data_dir, constants.TRAIN_WORD_IN_CONTEXT_FILE)
-        full_dev_word_in_context = os.path.join(self.data_dir, constants.DEV_WORD_IN_CONTEXT_FILE)
-
-        full_train_context_chars_file_name = os.path.join(self.data_dir, constants.TRAIN_CONTEXT_CHAR_FILE)
-        full_train_question_chars_file_name = os.path.join(self.data_dir, constants.TRAIN_QUESTION_CHAR_FILE)
-        full_dev_context_chars_file_name = os.path.join(self.data_dir, constants.DEV_CONTEXT_CHAR_FILE)
-        full_dev_question_chars_file_name = os.path.join(self.data_dir, constants.DEV_QUESTION_CHAR_FILE)
-
-        full_train_question_ids_file_name = os.path.join(self.data_dir, constants.TRAIN_QUESTION_IDS_FILE)
-        full_train_question_ids_to_ground_truths_file_name = os.path.join(self.data_dir, constants.TRAIN_QUESTION_IDS_TO_GND_TRUTHS_FILE)
-        full_dev_question_ids_file_name = os.path.join(self.data_dir, constants.DEV_QUESTION_IDS_FILE)
-        full_dev_question_ids_to_ground_truths_file_name = os.path.join(self.data_dir, constants.DEV_QUESTION_IDS_TO_GND_TRUTHS_FILE)
-
-        file_names = [
-            full_train_text_tokens_file_name,
-            full_dev_text_tokens_file_name,
-            full_train_qst_file_name,
-            full_dev_qst_file_name,
-            full_dev_ctx_file_name,
-            full_train_ctx_file_name,
-            full_dev_span_file_name,
-            full_train_span_file_name,
-            full_train_word_in_question,
-            full_dev_word_in_question,
-            full_train_word_in_context,
-            full_dev_word_in_context,
-            full_train_context_chars_file_name,
-            full_train_question_chars_file_name,
-            full_dev_context_chars_file_name,
-            full_dev_question_chars_file_name,
-            full_train_question_ids_file_name,
-            full_train_question_ids_to_ground_truths_file_name,
-            full_dev_question_ids_file_name,
-            full_dev_question_ids_to_ground_truths_file_name,
-        ]
+        file_names = train_files_wrapper.get_all_files() \
+            + dev_files_wrapper.get_all_files()
         if all([os.path.exists(filename) for filename in file_names]):
             print("Context, question, and span files already exist. Not creating data again.")
             return
@@ -246,80 +216,37 @@ class DataParser():
         # responds.
         time.sleep(5)
         print("Getting DEV dataset")
-        dev_ctx_list, dev_word_in_question, dev_qst_list, \
-            dev_word_in_context, dev_spans_np_arr, dev_text_tokens, \
-            dev_context_chars, dev_question_chars, dev_question_ids, \
-            dev_question_ids_to_ground_truths = \
-            self._create_train_data_internal(constants.DEV_SQUAD_FILE,
-                is_dev=True)
+        dev_raw_data = self._create_train_data_internal(
+            constants.DEV_SQUAD_FILE, is_dev=True)
         print("Getting TRAIN dataset")
-        train_ctx_list, train_word_in_question, train_qst_list, \
-            train_word_in_context, train_spans_np_arr, train_text_tokens, \
-            train_context_chars, train_question_chars, train_question_ids, \
-            train_question_ids_to_ground_truths = \
-            self._create_train_data_internal(constants.TRAIN_SQUAD_FILE,
-                is_dev=False)
+        train_raw_data = self._create_train_data_internal(
+            constants.TRAIN_SQUAD_FILE, is_dev=False)
         self.nlp.stop_server()
 
-        print("Saving text tokens to binary pickle files")
-        save_pickle_file(full_train_text_tokens_file_name, train_text_tokens)
-        save_pickle_file(full_dev_text_tokens_file_name, dev_text_tokens)
-
-        print("Saving span numpy arrays")
-        np.save(full_train_span_file_name, train_spans_np_arr)
-        np.save(full_dev_span_file_name, dev_spans_np_arr)
-
-        print("Saving context numpy arrays")
         max_context_length = max(
-                max([len(x) for x in train_ctx_list]),
-                max([len(x) for x in dev_ctx_list]))
-        train_ctx_np_arr = np.array(self._create_padded_array(train_ctx_list, max_context_length, self.vocab.PAD_ID), dtype=np.int32)
-        np.save(full_train_ctx_file_name, train_ctx_np_arr)
-        dev_ctx_np_arr = np.array(self._create_padded_array(dev_ctx_list, max_context_length, self.vocab.PAD_ID), dtype=np.int32)
-        np.save(full_dev_ctx_file_name, dev_ctx_np_arr)
+                max([len(x) for x in train_raw_data.list_contexts]),
+                max([len(x) for x in dev_raw_data.list_contexts]))
 
-        print("Saving context character-level numpy arrays")
-        train_ctx_char_arr = get_char_np_array(train_context_chars, max_context_length, self.vocab)
-        np.save(full_train_context_chars_file_name, train_ctx_char_arr)
-        dev_ctx_char_arr = get_char_np_array(dev_context_chars, max_context_length, self.vocab)
-        np.save(full_dev_context_chars_file_name, dev_ctx_char_arr)
-
-        print("Saving question numpy arrays")
         max_question_length = max(
-                max([len(x) for x in train_qst_list]),
-                max([len(x) for x in dev_qst_list]))
-        train_qst_np_arr = np.array(self._create_padded_array(train_qst_list, max_question_length, self.vocab.PAD_ID), dtype=np.int32)
-        np.save(full_train_qst_file_name, train_qst_np_arr)
-        dev_qst_np_arr = np.array(self._create_padded_array(dev_qst_list, max_question_length, self.vocab.PAD_ID), dtype=np.int32)
-        np.save(full_dev_qst_file_name, dev_qst_np_arr)
+                max([len(x) for x in train_raw_data.list_questions]),
+                max([len(x) for x in dev_raw_data.list_questions]))
 
-        print("Saving question character-level numpy arrays")
-        train_qst_char_arr = get_char_np_array(train_question_chars, max_question_length, self.vocab)
-        np.save(full_train_question_chars_file_name, train_qst_char_arr)
-        dev_qst_char_arr = get_char_np_array(dev_question_chars, max_question_length, self.vocab)
-        np.save(full_dev_question_chars_file_name, dev_qst_char_arr)
+        print("Saving TRAIN data")
+        train_file_saver = DatasetFilesSaver(
+                train_files_wrapper,
+                max_context_length,
+                max_question_length,
+                self.vocab,
+                train_raw_data)
+        train_file_saver.save()
 
-        print("Saving additional feature numpy arrays")
-        train_word_in_question_np_arr = np.array(self._create_padded_array(train_word_in_question, max_context_length, 0), dtype=np.float32)
-        np.save(full_train_word_in_question, train_word_in_question_np_arr)
-        train_word_in_context_np_arr = np.array(self._create_padded_array(train_word_in_context, max_question_length, 0), dtype=np.float32)
-        np.save(full_train_word_in_context, train_word_in_context_np_arr)
-
-        dev_word_in_question_np_arr = np.array(self._create_padded_array(dev_word_in_question, max_context_length, 0), dtype=np.float32)
-        np.save(full_dev_word_in_question, dev_word_in_question_np_arr)
-        dev_word_in_context_np_arr = np.array(self._create_padded_array(dev_word_in_context, max_question_length, 0), dtype=np.float32)
-        np.save(full_dev_word_in_context, dev_word_in_context_np_arr)
-
-        print("Saving question ids")
-        train_question_ids_np_arr = np.array(train_question_ids, dtype=np.int32)
-        np.save(full_train_question_ids_file_name, train_question_ids_np_arr)
-        dev_question_ids_np_arr = np.array(dev_question_ids, dtype=np.int32)
-        np.save(full_dev_question_ids_file_name, dev_question_ids_np_arr)
-
-        print("Saving question ids to ground truths dict")
-        save_pickle_file(full_train_question_ids_to_ground_truths_file_name,
-            train_question_ids_to_ground_truths)
-        save_pickle_file(full_dev_question_ids_to_ground_truths_file_name,
-            dev_question_ids_to_ground_truths)
+        print("Saving DEV data")
+        dev_file_saver = DatasetFilesSaver(
+                dev_files_wrapper,
+                max_context_length,
+                max_question_length,
+                self.vocab,
+                dev_raw_data)
+        dev_file_saver.save()
 
         print("Finished creating training data!")
