@@ -8,7 +8,7 @@ f.DEFINE_integer("max_ctx_length", 300,
         "Max passage length to keep. Longer content will be trimmed.")
 f.DEFINE_integer("max_qst_length", 60,
         "Max question length to keep. Longer content will be trimmed.")
-f.DEFINE_string("model_type", "match_lstm", "Type of model to train." +
+f.DEFINE_string("model_type", "mnemonic_reader", "Type of model to train." +
         "The model types are in models/model_types.py")
 f.DEFINE_string("experiment_name", "test",
         "Name of the experiment being run; different experiments will be " +
@@ -67,10 +67,10 @@ f.DEFINE_integer("num_evaluation_samples", 200, "Number of samples of the " +
         "datasets to take for partial exact match and f1 score evaluations." +
         "This is done since it can take a while to evaluate the model on the" +
         "whole dataset")
-f.DEFINE_integer("rnn_size", 150, "The dimension of rnn cells.")
+f.DEFINE_integer("rnn_size", 100, "The dimension of rnn cells.")
 f.DEFINE_integer("num_rnn_layers", 1, "The number of rnn layers to use in " +
         "a single multi-rnn cell.")
-f.DEFINE_float("dropout", 0, "The amount of dropout to use. Should be " +
+f.DEFINE_float("dropout", 0.1, "The amount of dropout to use. Should be " +
         "between 0 (no dropout) and 1.0 (100% dropout).")
 f.DEFINE_integer("dataset_buffer_size", 100, "Size of the dataset buffer." +
         "See the Tensorflow Dataset API for details.")
