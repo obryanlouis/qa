@@ -34,7 +34,7 @@ Results
 | -------------- |:-----------------:| -------- |
 |Match LSTM      | 59.4%             | 69.5%    |
 |Rnet            | 61.4%             | 71.7%    |
-|Mnemonic reader | 68.4%             | 77.4%    |
+|Mnemonic reader | 69.6%             | 78.6%    |
 
 All results are for a single model rather than an ensemble.
 I didn't train all models for a complete 10 epochs and there may be bugs or
