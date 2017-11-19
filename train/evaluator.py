@@ -22,15 +22,9 @@ class Evaluator:
         self.sq_dataset = None
         self.tf_dataset = None
         self.saver = None
-        self.train_writer = None
-        self.val_writer = None
-        self.em = None
-        self.f1 = None
-        self.summary_assignments = {}
         self.s3 = None
         self.s3_save_key = create_s3_save_key(options)
         self.checkpoint_file_name = create_checkpoint_file_name(options)
-        self.optimizer = None
 
     def evaluate(self):
         if self.options.use_s3:
