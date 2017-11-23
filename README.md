@@ -21,7 +21,8 @@ Specifically, this project implements:
   "feature-rich" encoder, iterative alignment of the passage and question,
   and a memory-based answer pointer layer. There is also a "reinforced" version
   of this model that uses reinforcement learning to fine-tune the model weights
-  after initial training is done with gradient descent.
+  after initial training is done with gradient descent, although my
+  implementation does not include that.
 
 I primarily made this for my own education, but the code could be used as a
 starting point for another project. Code is written in TensorFlow and uses
@@ -34,10 +35,10 @@ Results
 | -------------- |:-----------------:| -------- |
 |Match LSTM      | 59.4%             | 69.5%    |
 |Rnet            | 61.4%             | 71.7%    |
-|Mnemonic reader | 69.3%             | 79.2%    |
+|Mnemonic reader | 70.5%             | 79.8%    |
 
 All results are for a single model rather than an ensemble.
-I didn't train all models for a complete 10 epochs and there may be bugs or
+I didn't train all models for the same duration and there may be bugs or
 unoptimized hyperparameters in my implementation.
 
 
