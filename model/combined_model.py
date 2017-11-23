@@ -25,14 +25,14 @@ class CombinedModel(BaseModel):
                 self.options, ctx_dropout, qst_dropout, self.keep_prob)
         # Step 2. Run a bi-lstm over the passage with the question as the
         # attention.
-        ctx_attention = run_attention(self.sq_dataset, self.options,
+        ctx_attention = run_attention(self.options,
                 passage_outputs, 2 * self.options.rnn_size, question_outputs,
                 2 * self.options.rnn_size, "ctx_attention_birnn", self.batch_size,
                 self.sq_dataset.get_max_qst_len(), self.keep_prob,
                 self.sq_dataset.get_max_ctx_len(), num_rnn_layers=1)
         # Step 3. Run self-matching attention of the previous result over
         # itself.
-        ctx_attention = run_attention(self.sq_dataset, self.options,
+        ctx_attention = run_attention(self.options,
                 ctx_attention, 2 * self.options.rnn_size, ctx_attention,
                 2 * self.options.rnn_size, "ctx_self_matching_attention", self.batch_size,
                 self.sq_dataset.get_max_ctx_len(), self.keep_prob,

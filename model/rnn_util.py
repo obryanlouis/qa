@@ -91,7 +91,7 @@ def _get_or_create_attention_variables(options, attention_input, input_dim,
             "WqHq": WqHq,
         }
 
-def run_attention(sq_dataset, options, inputs, input_dim, attention_input, attention_dim,
+def run_attention(options, inputs, input_dim, attention_input, attention_dim,
         scope, batch_size, attention_length, keep_prob,
         input_length, num_rnn_layers=1):
     '''Runs an attention RNN over the inputs given the attention.
