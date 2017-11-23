@@ -26,7 +26,6 @@ def get_sentence_fragments(sq_dataset, scope, options, ctx, ctx_dim, keep_prob):
         while word_idx < data_set_len:
             next_word_idx = min(data_set_len,
                 word_idx + options.sent_frag_length)
-            print("word_idx", word_idx, "next_word_idx", next_word_idx)
             sent_frag = ctx[:, word_idx:next_word_idx, :]
             rnn_outputs, _ = tf.nn.bidirectional_dynamic_rnn(
                 cell_fw,
@@ -34,15 +33,12 @@ def get_sentence_fragments(sq_dataset, scope, options, ctx, ctx_dim, keep_prob):
                 sent_frag,
                 dtype=tf.float32)
             fw_outputs, bw_outputs = rnn_outputs
-            print("Creating last output fw")
             last_output_fw = fw_outputs[:, next_word_idx - word_idx - 1, :] # size = [batch_size, rnn_size]
-            print("Creating first output bw")
             last_output_bw = bw_outputs[:, 0, :] # size = [batch_size, rnn_size]
             frag_outputs.append(last_output_fw)
             frag_outputs.append(last_output_bw)
             word_idx = next_word_idx
         sent_frags_len = len(frag_outputs)
-        print("Num sent frags:", sent_frags_len)
         sent_frags = tf.stack(frag_outputs, axis=1) # size = [batch_size, sent_frags_len, 2 * rnn_size]
         sent_cell_fw = create_multi_rnn_cell(options, "sent_fw", keep_prob)
         sent_cell_bw = create_multi_rnn_cell(options, "sent_bw", keep_prob)
@@ -54,5 +50,4 @@ def get_sentence_fragments(sq_dataset, scope, options, ctx, ctx_dim, keep_prob):
                 dtype=tf.float32)
         sent_fw_output, sent_bw_output = rnn_outputs # size(each) = [batch_size, sent_frags_len, rnn_size]
         sent_frags = tf.concat([sent_fw_output, sent_bw_output], axis=2) # size = [batch_size, sent_frags_len, 2 * rnn_size]
-        print("sent_frags shape", sent_frags.get_shape())
         return sent_frags, sent_frags_len
