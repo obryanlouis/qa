@@ -70,11 +70,11 @@ def create_model_inputs(words_placeholder, ctx, qst, ctx_chars, qst_chars,
             qst_embedded = tf.nn.embedding_lookup(words_placeholder, qst)
             ctx_inputs_list = [ctx_embedded]
             qst_inputs_list = [qst_embedded]
-            wiq_sh = tf.shape(wiq)
-            wiq_feature_shape = [wiq_sh[0], wiq_sh[1]] + [1]
-            wic_sh = tf.shape(wic)
-            wic_feature_shape = [wic_sh[0], wic_sh[1]] + [1]
             if options.use_word_in_question_feature:
+                wiq_sh = tf.shape(wiq)
+                wiq_feature_shape = [wiq_sh[0], wiq_sh[1]] + [1]
+                wic_sh = tf.shape(wic)
+                wic_feature_shape = [wic_sh[0], wic_sh[1]] + [1]
                 ctx_inputs_list.append(tf.reshape(tf.cast(wiq, dtype=tf.float32), shape=wiq_feature_shape))
                 qst_inputs_list.append(tf.reshape(tf.cast(wic, dtype=tf.float32), shape=wic_feature_shape))
             if options.use_word_similarity_feature:
