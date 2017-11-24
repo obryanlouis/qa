@@ -7,14 +7,12 @@ from abc import ABCMeta, abstractmethod
 from model.input_util import *
 
 class BaseModel:
-    def __init__(self, options, tf_iterators, sq_dataset):
+    def __init__(self, options, tf_iterators, sq_dataset, embeddings):
         self.sq_dataset = sq_dataset
         self.options = options
-        self.embeddings = sq_dataset.embeddings
         self.batch_size = None
-        self.num_words = self.embeddings.shape[0]
-        self.word_dim = self.embeddings.shape[1]
-        self.embedding_placeholder = None
+        self.num_words = self.sq_dataset.embeddings.shape[0]
+        self.word_dim = self.sq_dataset.embeddings.shape[1]
         self.char_embedding_placeholder = None
         self.keep_prob = None
         self.ctx_iterator = tf_iterators.ctx
@@ -31,34 +29,19 @@ class BaseModel:
         self.qst_ner_iterator = tf_iterators.qst_ner
         self.ctx_inputs = None
         self.qst_inputs = None
+        self.embeddings = embeddings
 
     def get_data_index_iterator(self):
         return self.data_index_iterator
 
-    def get_embedding_placeholder(self):
-        return self.embedding_placeholder
-
     def get_keep_prob_placeholder(self):
         return self.keep_prob
 
-    def _create_word_embedding_placeholder(self):
-        # Need to add a vector for padding words and a vector for unique words.
-        # The result, which should be used in further calculations, is stored
-        # in self.words_placeholder rather than self.embedding_placeholder.
-        self.embedding_placeholder = tf.placeholder(tf.float32, shape=[self.num_words, self.word_dim])
-        self.padding_vector = tf.get_variable("padding_vector", shape=[1, self.word_dim])
-        self.unique_word_vector = tf.get_variable("unique_word_vector", shape=[1, self.word_dim])
-        with tf.device("/cpu:0"):
-            # Order of normal vocab, pad, unk must match vocab_util.py
-            self.words_placeholder = tf.concat([self.embedding_placeholder,
-                self.padding_vector, self.unique_word_vector], axis=0)
-
     def setup(self):
         self.keep_prob = tf.placeholder(tf.float32)
-        self._create_word_embedding_placeholder()
         self.batch_size = tf.shape(self.ctx_iterator)[0]
         self.ctx_inputs, self.qst_inputs = create_model_inputs(
-                self.words_placeholder, self.ctx_iterator,
+                self.embeddings, self.ctx_iterator,
                 self.qst_iterator, self.ctx_chars_iterator,
                 self.qst_chars_iterator,
                 self.options, self.wiq_iterator,
@@ -83,4 +66,3 @@ class BaseModel:
     @abstractmethod
     def get_end_span_probs(self):
         pass
-
