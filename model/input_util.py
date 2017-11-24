@@ -66,8 +66,6 @@ def create_model_inputs(words_placeholder, ctx, qst, ctx_chars, qst_chars,
         options, wiq, wic, sq_dataset, ctx_pos, qst_pos, ctx_ner, qst_ner):
     with tf.device("/cpu:0"):
         with tf.variable_scope("model_inputs"):
-            v_wiq = tf.get_variable("v_wiq", shape=[sq_dataset.word_vec_size])
-            v_wic = tf.get_variable("v_wic", shape=[sq_dataset.word_vec_size])
             ctx_embedded = tf.nn.embedding_lookup(words_placeholder, ctx)
             qst_embedded = tf.nn.embedding_lookup(words_placeholder, qst)
             ctx_inputs_list = [ctx_embedded]
@@ -80,6 +78,8 @@ def create_model_inputs(words_placeholder, ctx, qst, ctx_chars, qst_chars,
                 ctx_inputs_list.append(tf.reshape(tf.cast(wiq, dtype=tf.float32), shape=wiq_feature_shape))
                 qst_inputs_list.append(tf.reshape(tf.cast(wic, dtype=tf.float32), shape=wic_feature_shape))
             if options.use_word_similarity_feature:
+                v_wiq = tf.get_variable("v_wiq", shape=[sq_dataset.word_vec_size])
+                v_wic = tf.get_variable("v_wic", shape=[sq_dataset.word_vec_size])
                 ctx_inputs_list.append(_create_word_similarity(ctx_embedded, qst_embedded, v_wiq))
                 qst_inputs_list.append(_create_word_similarity(qst_embedded, ctx_embedded, v_wic))
             if options.use_character_data:
