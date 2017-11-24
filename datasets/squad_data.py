@@ -52,5 +52,8 @@ class SquadData(SquadDataBase):
             load_file(data_dir, constants.DEV_QUESTION_NER_FILE))
         self.embeddings = np.load(os.path.join(data_dir,
                     constants.EMBEDDING_FILE))
+        # Add in all 0 embeddings for the padding and unk vectors
+        self.embeddings = np.concatenate((self.embeddings,
+            np.zeros((2, self.embeddings.shape[1]))))
         self.word_vec_size = constants.WORD_VEC_DIM
         self.max_word_len = constants.MAX_WORD_LEN

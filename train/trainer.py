@@ -46,8 +46,17 @@ class Trainer:
 
         self.sq_dataset = create_sq_dataset(self.options)
         with tf.Graph().as_default(), tf.device('/cpu:0'):
-            self.tf_dataset = create_tf_dataset(self.options, self.sq_dataset)
             self.session = create_session()
+
+            print("Creating embeddings variable")
+            embedding_placeholder = tf.placeholder(tf.float32, shape=[
+                self.sq_dataset.embeddings.shape[0],
+                self.sq_dataset.embeddings.shape[1]])
+            embedding_var = \
+                tf.Variable(embedding_placeholder, trainable=False)
+            print("Embeddings variable created")
+
+            self.tf_dataset = create_tf_dataset(self.options, self.sq_dataset)
             learning_rate = tf.Variable(initial_value=
                 self.options.learning_rate, trainable=False, dtype=tf.float32)
             learning_rate_placeholder = tf.placeholder(tf.float32)
@@ -55,7 +64,9 @@ class Trainer:
                     tf.maximum(self.options.min_learning_rate, learning_rate_placeholder))
             self.optimizer = tf.train.AdamOptimizer(
                 learning_rate=self.options.learning_rate)
-            self.model_builder = ModelBuilder(self.optimizer, self.options, self.tf_dataset, self.sq_dataset, compute_gradients=True)
+            self.model_builder = ModelBuilder(self.optimizer, self.options,
+                self.tf_dataset, self.sq_dataset, embedding_var,
+                compute_gradients=True)
             print("Applying gradients")
             apply_gradients_start_time = time.time()
             train_op = None
@@ -97,40 +108,42 @@ class Trainer:
                     % (time.time() - apply_gradients_start_time))
 
             maybe_restore_model(self.s3, self.s3_save_key, self.options,
-                self.session, self.checkpoint_file_name, self.saver)
+                self.session, self.checkpoint_file_name, self.saver,
+                embedding_placeholder, self.sq_dataset.embeddings)
             maybe_print_model_parameters(self.options)
             self.tf_dataset.setup_with_tf_session(self.session)
 
             print("Total setup time before starting training: %s"
                   % (time.time() - train_start_time))
             current_iter = int(self.session.run(iteration_num))
-            iterations_per_epoch = self.sq_dataset.train_ds.get_size() / self.options.batch_size
-            total_iter = int(self.options.epochs * iterations_per_epoch)
+            iterations_per_epoch = self.sq_dataset.train_ds.get_size() / \
+                (self.options.batch_size * max(1, self.options.num_gpus))
+            total_iter = max(int(self.options.epochs * iterations_per_epoch), 1)
             start_time = time.time()
             print("Current iteration: %d, Total iterations: %d"
                   % (current_iter, total_iter))
-            start_iter = current_iter
             i = current_iter - 1
+
             while True:
                 i += 1
+                iter_start = time.time()
                 _, loss_value, _, loss_summary_value, \
                     gradients_summary_value, norm_value = \
                     self.session.run([train_op, loss, incr_iter,
                         loss_summary, gradients_summary, global_norm], feed_dict=
                         get_train_feed_dict(self.sq_dataset, self.tf_dataset,
                             self.options, self.model_builder.get_towers()))
-                elapsed = time.time() - start_time
-                time_per_iter = elapsed / (i - start_iter + 1)
+                iter_end = time.time()
+                time_per_iter = iter_end - iter_start
                 time_per_epoch = time_per_iter * iterations_per_epoch
                 remaining_iters = total_iter - i - 1
                 eta = remaining_iters * time_per_iter
                 print("iteration:", str(i) + "/" + str(total_iter),
-                        "percent done:", 100.0 * float(i) / float(total_iter), 
-                        "loss:", loss_value,
-                        "Sec/iter", time_per_iter, 
-                        "Norm", norm_value,
-                        "time/epoch", readable_time(time_per_epoch), 
-                        readable_eta(eta), end="\r")
+                      "percent done:", 100.0 * float(i) / float(total_iter), 
+                      "loss:", loss_value,
+                      "Sec/iter", time_per_iter, 
+                      "Norm", norm_value,
+                      "time/epoch", readable_time(time_per_epoch), end="\r")
                 if i % self.options.log_every == 0:
                     if self.options.log_gradients:
                         self.train_writer.add_summary(gradients_summary_value, i)

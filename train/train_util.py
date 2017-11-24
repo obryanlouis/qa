@@ -18,7 +18,6 @@ def get_feed_dict(squad_data, tf_dataset, options, towers, is_train):
     feed_dict = {}
     for i in range(len(towers)):
         tower = towers[i]
-        feed_dict[tower.get_embedding_placeholder()] = squad_data.embeddings
         feed_dict[tower.get_keep_prob_placeholder()] = 1 if not is_train else 1 - options.dropout
     train_handle = tf_dataset.get_train_handle()
     dev_handle = tf_dataset.get_dev_handle()

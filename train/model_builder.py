@@ -7,7 +7,8 @@ import time
 from model.model_types import MODEL_TYPES
 
 class ModelBuilder:
-    def __init__(self, optimizer, options, tf_dataset, sq_dataset, compute_gradients):
+    def __init__(self, optimizer, options, tf_dataset, sq_dataset, embeddings,
+            compute_gradients):
         self.sq_dataset = sq_dataset
         self.optimizer = optimizer
         self.options = options
@@ -16,6 +17,7 @@ class ModelBuilder:
         self.compute_gradients = compute_gradients
         self.tower_grads = []
         self.loss = None
+        self.embeddings = embeddings
         self._setup()
 
     def get_towers(self):
@@ -35,7 +37,7 @@ class ModelBuilder:
     def _add_tower_and_compute_loss(self, scope, iterators):
         print("Creating tower in model")
         tower = MODEL_TYPES[self.options.model_type](self.options,
-                iterators, self.sq_dataset)
+                iterators, self.sq_dataset, self.embeddings)
         tower.setup()
         print("Tower created")
         self.towers.append(tower)
@@ -59,10 +61,8 @@ class ModelBuilder:
                     tower_creation_time += (time.time() - tower_start_time)
                     if self.compute_gradients:
                         gradient_start_time = time.time()
-                        # Aggregation_method=2 is slightly slower, but
-                        # allows training larger models.
-                        self.tower_grads.append(self.optimizer.compute_gradients(self.loss,
-                                    aggregation_method=2))
+                        self.tower_grads.append(
+                            self.optimizer.compute_gradients(self.loss))
                         gradient_computation_time += (time.time() - gradient_start_time)
                 else:
                     for i in range(self.options.num_gpus):
@@ -77,10 +77,8 @@ class ModelBuilder:
                                 tf.get_variable_scope().reuse_variables()
                                 if self.compute_gradients:
                                     gradient_start_time = time.time()
-                                    # Aggregation_method=2 is slightly slower, but
-                                    # allows training larger models.
-                                    grads = self.optimizer.compute_gradients(self.loss,
-                                            aggregation_method=2)
+                                    grads = self.optimizer.compute_gradients(
+                                        self.loss)
                                     gradient_computation_time += (time.time() - gradient_start_time)
                                     self.tower_grads.append(grads)
             print("Time to create towers: %s" % tower_creation_time)

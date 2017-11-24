@@ -11,8 +11,8 @@ from datasets.squad_data_base import SquadDataBase
 from datasets.file_util import *
 from preprocessing.vocab_util import get_vocab
 
-WORD_DIM = 7
-WORD_LEN = 5
+WORD_DIM = 300
+WORD_LEN = 25
 
 class TestData(SquadDataBase):
     def __init__(self, options):
@@ -24,6 +24,7 @@ class TestData(SquadDataBase):
             self.vocab, WORD_LEN)
         self.dev_ds = self.train_ds
         vocab_size = self.vocab.get_vocab_size_without_pad_or_unk()
-        self.embeddings = np.random.uniform(-1.0, 1.0, size=(vocab_size, WORD_DIM))
+        self.embeddings = np.random.uniform(-1.0, 1.0,
+            size=(vocab_size + 2, WORD_DIM))
         self.word_vec_size = WORD_DIM
         self.max_word_len = WORD_LEN

@@ -56,9 +56,9 @@ f.DEFINE_string("s3_data_folder_name", "data", "Folder within the S3 bucket " +
         "s3 storage is enabled. Using this makes it faster to start up "
         "training on another instance, rather than using SCP to upload " +
         "files and then unzip them on the EC2 instance.")
-f.DEFINE_integer("num_gpus", 0, "Number of GPUs available for training. " +
+f.DEFINE_integer("num_gpus", 2, "Number of GPUs available for training. " +
         "Use 0 for CPU-only training")
-f.DEFINE_integer("batch_size", 10, "Training batch size. If using GPUs, " +
+f.DEFINE_integer("batch_size", 24, "Training batch size. If using GPUs, " +
         "then this will be the same for each GPU.")
 f.DEFINE_integer("epochs", 10, "Number of epochs to train." +
         "The training process will keep going after this limit, but will show" +
