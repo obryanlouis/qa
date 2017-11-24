@@ -17,7 +17,7 @@ def decode_answer_pointer_boundary(options, batch_size, keep_prob, spans,
         ba = tf.get_variable("ba", shape=[1, options.rnn_size])
         c = tf.get_variable("c", shape=[1])
         answer_lstm_cell = create_multi_rnn_cell(options, "answer_lstm",
-                keep_prob)
+            keep_prob)
     initial_state = get_question_attention(options, question_outputs,
         reduce_size=True)
     answer_pointer_state = (initial_state,) * options.num_rnn_layers

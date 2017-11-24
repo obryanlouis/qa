@@ -36,7 +36,7 @@ def create_tf_dataset(options, sq_dataset):
     return tf_dataset
 
 def maybe_restore_model(s3, s3_save_key, options, session,
-        checkpoint_file_name, saver):
+        checkpoint_file_name, saver, embeddings_placeholder, embeddings):
     print("Restoring or creating new model...")
     start = time.time()
     maybe_download_files_from_s3(s3, s3_save_key, options.checkpoint_dir, options)
@@ -45,5 +45,7 @@ def maybe_restore_model(s3, s3_save_key, options, session,
         saver.restore(session, checkpoint_file_name)
     else:
         print("Creating model with new parameters")
-        session.run(tf.global_variables_initializer())
+        session.run(tf.global_variables_initializer(), feed_dict={
+            embeddings_placeholder: embeddings,
+        })
     print("Model initialization time %s" % (time.time() - start))

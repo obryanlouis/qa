@@ -34,13 +34,20 @@ class Evaluator:
 
         self.sq_dataset = create_sq_dataset(self.options)
         with tf.Graph().as_default(), tf.device('/cpu:0'):
+            embedding_placeholder = tf.placeholder(tf.float32, shape=[
+                self.sq_dataset.embeddings.shape[0],
+                self.sq_dataset.embeddings.shape[1]])
+            embedding_var = \
+                tf.Variable(embedding_placeholder, trainable=False)
             self.tf_dataset = create_tf_dataset(self.options, self.sq_dataset)
             self.session = create_session()
             self.model_builder = ModelBuilder(None, self.options,
-                self.tf_dataset, self.sq_dataset, compute_gradients=False)
+                self.tf_dataset, self.sq_dataset, embedding_var,
+                compute_gradients=False)
             self.saver = create_saver()
             maybe_restore_model(self.s3, self.s3_save_key, self.options,
-                self.session, self.checkpoint_file_name, self.saver)
+                self.session, self.checkpoint_file_name, self.saver,
+                embedding_placeholder, self.sq_dataset.embeddings)
             maybe_print_model_parameters(self.options)
             self.tf_dataset.setup_with_tf_session(self.session)
 

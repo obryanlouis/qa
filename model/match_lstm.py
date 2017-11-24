@@ -11,12 +11,6 @@ from model.encoding_util import *
 from model.decoding_util import *
 
 class MatchLstm(BaseModel):
-    def __init__(self, options, tf_iterators, sq_dataset):
-        super().__init__(options, tf_iterators, sq_dataset)
-        self.loss = None
-        self.start_span_probs = None
-        self.end_span_probs = None
-
     def setup(self):
         super(MatchLstm, self).setup()
         # Step 1. Encode the passage and question.
@@ -46,4 +40,3 @@ class MatchLstm(BaseModel):
 
     def get_end_span_probs(self):
         return self.end_span_probs
-

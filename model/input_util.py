@@ -64,39 +64,38 @@ def _cast_int32(tensor):
 
 def create_model_inputs(words_placeholder, ctx, qst, ctx_chars, qst_chars,
         options, wiq, wic, sq_dataset, ctx_pos, qst_pos, ctx_ner, qst_ner):
-    with tf.device("/cpu:0"):
-        with tf.variable_scope("model_inputs"):
-            ctx_embedded = tf.nn.embedding_lookup(words_placeholder, ctx)
-            qst_embedded = tf.nn.embedding_lookup(words_placeholder, qst)
-            ctx_inputs_list = [ctx_embedded]
-            qst_inputs_list = [qst_embedded]
-            if options.use_word_in_question_feature:
-                wiq_sh = tf.shape(wiq)
-                wiq_feature_shape = [wiq_sh[0], wiq_sh[1]] + [1]
-                wic_sh = tf.shape(wic)
-                wic_feature_shape = [wic_sh[0], wic_sh[1]] + [1]
-                ctx_inputs_list.append(tf.reshape(tf.cast(wiq, dtype=tf.float32), shape=wiq_feature_shape))
-                qst_inputs_list.append(tf.reshape(tf.cast(wic, dtype=tf.float32), shape=wic_feature_shape))
-            if options.use_word_similarity_feature:
-                v_wiq = tf.get_variable("v_wiq", shape=[sq_dataset.word_vec_size])
-                v_wic = tf.get_variable("v_wic", shape=[sq_dataset.word_vec_size])
-                ctx_inputs_list.append(_create_word_similarity(ctx_embedded, qst_embedded, v_wiq))
-                qst_inputs_list.append(_create_word_similarity(qst_embedded, ctx_embedded, v_wic))
-            if options.use_character_data:
-                char_embedding = _create_char_embedding(sq_dataset, options)
-                _add_char_embedding_inputs("ctx_embedding", char_embedding,
-                        ctx_chars, options, ctx_inputs_list, sq_dataset)
-                _add_char_embedding_inputs("qst_embedding", char_embedding,
-                        qst_chars, options, qst_inputs_list, sq_dataset)
-            if options.use_pos_tagging_feature:
-                pos_embedding = tf.get_variable("pos_embedding", shape=[2**8, options.pos_embedding_size])
-                ctx_inputs_list.append(tf.nn.embedding_lookup(pos_embedding, _cast_int32(ctx_pos)))
-                qst_inputs_list.append(tf.nn.embedding_lookup(pos_embedding, _cast_int32(qst_pos)))
-            if options.use_ner_feature:
-                ner_embedding = tf.get_variable("ner_embedding", shape=[2**8, options.ner_embedding_size])
-                ctx_inputs_list.append(tf.nn.embedding_lookup(ner_embedding, _cast_int32(ctx_ner)))
-                qst_inputs_list.append(tf.nn.embedding_lookup(ner_embedding, _cast_int32(qst_ner)))
-            if len(ctx_inputs_list) == 1:
-                return ctx_inputs_list[0], qst_inputs_list[0]
-            else:
-                return tf.concat(ctx_inputs_list, axis=-1), tf.concat(qst_inputs_list, axis=-1)
+    with tf.variable_scope("model_inputs"):
+        ctx_embedded = tf.nn.embedding_lookup(words_placeholder, ctx)
+        qst_embedded = tf.nn.embedding_lookup(words_placeholder, qst)
+        ctx_inputs_list = [ctx_embedded]
+        qst_inputs_list = [qst_embedded]
+        if options.use_word_in_question_feature:
+            wiq_sh = tf.shape(wiq)
+            wiq_feature_shape = [wiq_sh[0], wiq_sh[1]] + [1]
+            wic_sh = tf.shape(wic)
+            wic_feature_shape = [wic_sh[0], wic_sh[1]] + [1]
+            ctx_inputs_list.append(tf.reshape(tf.cast(wiq, dtype=tf.float32), shape=wiq_feature_shape))
+            qst_inputs_list.append(tf.reshape(tf.cast(wic, dtype=tf.float32), shape=wic_feature_shape))
+        if options.use_word_similarity_feature:
+            v_wiq = tf.get_variable("v_wiq", shape=[sq_dataset.word_vec_size])
+            v_wic = tf.get_variable("v_wic", shape=[sq_dataset.word_vec_size])
+            ctx_inputs_list.append(_create_word_similarity(ctx_embedded, qst_embedded, v_wiq))
+            qst_inputs_list.append(_create_word_similarity(qst_embedded, ctx_embedded, v_wic))
+        if options.use_character_data:
+            char_embedding = _create_char_embedding(sq_dataset, options)
+            _add_char_embedding_inputs("ctx_embedding", char_embedding,
+                    ctx_chars, options, ctx_inputs_list, sq_dataset)
+            _add_char_embedding_inputs("qst_embedding", char_embedding,
+                    qst_chars, options, qst_inputs_list, sq_dataset)
+        if options.use_pos_tagging_feature:
+            pos_embedding = tf.get_variable("pos_embedding", shape=[2**8, options.pos_embedding_size])
+            ctx_inputs_list.append(tf.nn.embedding_lookup(pos_embedding, _cast_int32(ctx_pos)))
+            qst_inputs_list.append(tf.nn.embedding_lookup(pos_embedding, _cast_int32(qst_pos)))
+        if options.use_ner_feature:
+            ner_embedding = tf.get_variable("ner_embedding", shape=[2**8, options.ner_embedding_size])
+            ctx_inputs_list.append(tf.nn.embedding_lookup(ner_embedding, _cast_int32(ctx_ner)))
+            qst_inputs_list.append(tf.nn.embedding_lookup(ner_embedding, _cast_int32(qst_ner)))
+        if len(ctx_inputs_list) == 1:
+            return ctx_inputs_list[0], qst_inputs_list[0]
+        else:
+            return tf.concat(ctx_inputs_list, axis=-1), tf.concat(qst_inputs_list, axis=-1)

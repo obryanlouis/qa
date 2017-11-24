@@ -11,12 +11,6 @@ from model.memory_answer_pointer import *
 from model.rnn_util import *
 
 class MnemonicReader(BaseModel):
-    def __init__(self, options, embeddings, tf_iterators):
-        super().__init__(options, embeddings, tf_iterators)
-        self.loss = None
-        self.start_span_probs = None
-        self.end_span_probs = None
-
     def setup(self):
         super(MnemonicReader, self).setup()
         ctx_dim = 2 * self.options.rnn_size
@@ -43,4 +37,3 @@ class MnemonicReader(BaseModel):
 
     def get_end_span_probs(self):
         return self.end_span_probs
-
