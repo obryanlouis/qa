@@ -108,6 +108,8 @@ f.DEFINE_boolean("use_word_fusion_feature", True, "Whether to use the word" +
         "fusion feature as a model input.")
 f.DEFINE_float("fusion_matrix_dimension", 250, "Dimension of the diagonal" +
         "matrix for fusion (FusionNet).")
+f.DEFINE_boolean("use_cove_vectors", True, "Whether to use CoVe vectors" +
+        "as additional model inputs.")
 
 def get_options_from_flags():
     return tf.app.flags.FLAGS

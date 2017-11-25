@@ -1,5 +1,6 @@
 import tensorflow as tf
 
+from preprocessing.create_cove_vectors import maybe_create_cove_vectors
 from preprocessing.create_train_data import DataParser
 from preprocessing.download_data import download_data
 from preprocessing.download_stanford_corenlp import download_stanford_corenlp
@@ -14,6 +15,8 @@ def main(_):
     download_stanford_corenlp(data_dir)
     split_vocab_and_embedding(data_dir)
     DataParser(data_dir).create_train_data()
+    if options.use_cove_vectors:
+        maybe_create_cove_vectors(options)
     maybe_upload_data_files(options)
 
 if __name__ == "__main__":

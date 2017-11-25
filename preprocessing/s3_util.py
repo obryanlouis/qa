@@ -7,53 +7,61 @@ import os
 import preprocessing.constants as constants
 import time
 
-SAVE_FILE_NAMES = {
-    # Save the context/question/span numpy files
-    constants.TRAIN_CONTEXT_FILE,
-    constants.TRAIN_QUESTION_FILE,
-    constants.TRAIN_SPAN_FILE,
-    constants.TRAIN_WORD_IN_QUESTION_FILE,
-    constants.TRAIN_WORD_IN_CONTEXT_FILE,
-    constants.DEV_CONTEXT_FILE,
-    constants.DEV_QUESTION_FILE,
-    constants.DEV_SPAN_FILE,
-    constants.DEV_WORD_IN_QUESTION_FILE,
-    constants.DEV_WORD_IN_CONTEXT_FILE,
-    # Save the word vectors
-    constants.EMBEDDING_FILE,
-    # Save the text tokens
-    constants.TRAIN_FULL_TEXT_TOKENS_FILE,
-    constants.DEV_FULL_TEXT_TOKENS_FILE,
-    # Save the vocab
-    constants.VOCAB_FILE,
-    # Save the character-level data
-    constants.TRAIN_CONTEXT_CHAR_FILE,
-    constants.TRAIN_QUESTION_CHAR_FILE,
-    constants.DEV_CONTEXT_CHAR_FILE,
-    constants.DEV_QUESTION_CHAR_FILE,
-    # Save the question id files
-    constants.TRAIN_QUESTION_IDS_FILE,
-    constants.TRAIN_QUESTION_IDS_TO_GND_TRUTHS_FILE,
-    constants.DEV_QUESTION_IDS_FILE,
-    constants.DEV_QUESTION_IDS_TO_GND_TRUTHS_FILE,
-    # Save the POS and NER tags
-    constants.TRAIN_CONTEXT_POS_FILE,
-    constants.TRAIN_QUESTION_POS_FILE,
-    constants.TRAIN_CONTEXT_NER_FILE,
-    constants.TRAIN_QUESTION_NER_FILE,
-    constants.DEV_CONTEXT_POS_FILE,
-    constants.DEV_QUESTION_POS_FILE,
-    constants.DEV_CONTEXT_NER_FILE,
-    constants.DEV_QUESTION_NER_FILE,
-}
+def _get_save_file_names(options):
+    file_names = {
+        # Save the context/question/span numpy files
+        constants.TRAIN_CONTEXT_FILE,
+        constants.TRAIN_QUESTION_FILE,
+        constants.TRAIN_SPAN_FILE,
+        constants.TRAIN_WORD_IN_QUESTION_FILE,
+        constants.TRAIN_WORD_IN_CONTEXT_FILE,
+        constants.DEV_CONTEXT_FILE,
+        constants.DEV_QUESTION_FILE,
+        constants.DEV_SPAN_FILE,
+        constants.DEV_WORD_IN_QUESTION_FILE,
+        constants.DEV_WORD_IN_CONTEXT_FILE,
+        # Save the word vectors
+        constants.EMBEDDING_FILE,
+        # Save the text tokens
+        constants.TRAIN_FULL_TEXT_TOKENS_FILE,
+        constants.DEV_FULL_TEXT_TOKENS_FILE,
+        # Save the vocab
+        constants.VOCAB_FILE,
+        # Save the character-level data
+        constants.TRAIN_CONTEXT_CHAR_FILE,
+        constants.TRAIN_QUESTION_CHAR_FILE,
+        constants.DEV_CONTEXT_CHAR_FILE,
+        constants.DEV_QUESTION_CHAR_FILE,
+        # Save the question id files
+        constants.TRAIN_QUESTION_IDS_FILE,
+        constants.TRAIN_QUESTION_IDS_TO_GND_TRUTHS_FILE,
+        constants.DEV_QUESTION_IDS_FILE,
+        constants.DEV_QUESTION_IDS_TO_GND_TRUTHS_FILE,
+        # Save the POS and NER tags
+        constants.TRAIN_CONTEXT_POS_FILE,
+        constants.TRAIN_QUESTION_POS_FILE,
+        constants.TRAIN_CONTEXT_NER_FILE,
+        constants.TRAIN_QUESTION_NER_FILE,
+        constants.DEV_CONTEXT_POS_FILE,
+        constants.DEV_QUESTION_POS_FILE,
+        constants.DEV_CONTEXT_NER_FILE,
+        constants.DEV_QUESTION_NER_FILE,
+    }
+    if options.use_cove_vectors:
+        file_names.add(constants.DEV_COVE_QST_FILE)
+        file_names.add(constants.DEV_COVE_CTX_FILE)
+        file_names.add(constants.TRAIN_COVE_QST_FILE)
+        file_names.add(constants.TRAIN_COVE_CTX_FILE)
+    return file_names
 
-def already_uploaded_s3_files(options, bucket):
+def already_uploaded_s3_files(options, bucket, files):
     key_prefix = os.path.join(options.s3_data_folder_name)
     data_objs = {}
     for obj in bucket.objects.filter(Prefix=key_prefix):
         file_name = os.path.basename(obj.key)
         data_objs[file_name] = True
-    return all([file_name in data_objs for file_name in SAVE_FILE_NAMES])
+    return all([file_name in data_objs for file_name in files
+        if os.path.isfile(os.path.join(options.data_dir, file_name))])
 
 def maybe_upload_data_files(options):
     if not options.use_s3:
@@ -62,17 +70,22 @@ def maybe_upload_data_files(options):
     start = time.time()
     s3 = boto3.resource('s3')
     bucket = s3.Bucket(options.s3_bucket_name)
-    if already_uploaded_s3_files(options, bucket):
+    files = _get_save_file_names(options)
+    if already_uploaded_s3_files(options, bucket, files):
         print("Already uploaded all data files to s3. Not reuploading.")
         return
     print("Uploading data files to S3")
-    for file_name in SAVE_FILE_NAMES:
-        key = os.path.join(options.s3_data_folder_name, file_name)
+    files_uploaded = 0
+    for file_name in files:
         full_file_name = os.path.join(options.data_dir, file_name)
+        if not os.path.isfile(full_file_name):
+            continue
+        key = os.path.join(options.s3_data_folder_name, file_name)
         print("Uploading %s to %s" % (full_file_name, key))
         bucket.upload_file(full_file_name, key)
+        files_uploaded += 1
     print("Uploaded %d data files to AWS S3 in %f seconds" % (
-                len(SAVE_FILE_NAMES), time.time() - start))
+                files_uploaded, time.time() - start))
 
 def maybe_download_data_files(options):
     """Downloads preprocessed training/dev data from S3 storage, if s3 is
@@ -81,7 +94,7 @@ def maybe_download_data_files(options):
     if not options.use_s3:
         return
     if all([os.path.exists(os.path.join(options.data_dir, file_name)) for \
-            file_name in SAVE_FILE_NAMES]):
+            file_name in _get_save_file_names(options)]):
         print("Already have all data files. Not downloading from S3.")
         return
     print("Downloading data files from S3")
