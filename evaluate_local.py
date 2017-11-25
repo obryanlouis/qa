@@ -8,7 +8,7 @@ from flags import get_options_from_flags
 
 def main(_):
     options = get_options_from_flags()
-    maybe_download_data_files(options)
+    maybe_download_data_files_from_s3(options)
     Evaluator(options).evaluate()
 
 if __name__ == "__main__":

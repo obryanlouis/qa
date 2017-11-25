@@ -10,6 +10,3 @@ def load_text_file(data_dir, file_name):
     text_tokens = pickle.load(f)
     f.close()
     return text_tokens
-
-def load_file(data_dir, file_name):
-    return np.load(os.path.join(data_dir, file_name))

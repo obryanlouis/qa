@@ -22,6 +22,7 @@ f.DEFINE_float("min_learning_rate", 1e-6,
         "Minimum learning rate, even after decay.")
 f.DEFINE_float("learning_rate_decay", 0.7,
         "Learning rate to apply continuously over each epoch.")
+f.DEFINE_string("downloads_dir", "downloads", "Directory for data downloads.")
 f.DEFINE_string("data_dir", "data",
         "Directory with word embeddings, vocab, and training/dev data.")
 f.DEFINE_string("evaluation_dir", "evaluation_results",

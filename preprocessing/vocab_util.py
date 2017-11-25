@@ -11,36 +11,18 @@ import preprocessing.constants as constants
 MAX_CHARS = (2**8) - 2
 
 class Vocab:
-    def __init__(self, word_to_position, position_to_word, char_to_position,
-            position_to_char):
+    def __init__(self, word_to_position, position_to_word):
         self._word_to_position = word_to_position
         self._position_to_word = position_to_word
         max_id = max(position_to_word.keys())
         self.PAD_ID = max_id + 1
         self.UNK_ID = self.PAD_ID + 1
-        self._char_to_position = char_to_position
-        self._position_to_char = position_to_char
-        max_id = max(char_to_position.values())
-        self.CHAR_PAD_ID = max_id + 1
-        self.CHAR_UNK_ID = self.CHAR_PAD_ID + 1
     def is_pad_word_id(self, word_id):
         return word_id == self.PAD_ID
     def get_vocab_size_without_pad_or_unk(self):
         return len(self._word_to_position)
     def get_vocab_size_including_pad_and_unk(self):
         return len(self._word_to_position) + 2
-    def get_num_chars_including_padding(self):
-        return self.CHAR_UNK_ID + 1
-    def get_id_for_char(self, char):
-        if char in self._char_to_position:
-            return self._char_to_position[char]
-        return self.CHAR_UNK_ID
-    def get_char_for_id(self, char_id):
-        if char_id in self._position_to_char:
-            return self._position_to_char[char_id]
-        if char_id == self.CHAR_PAD_ID:
-            return "<CHAR_PAD>"
-        return "<UNK_CHAR>"
     def get_id_for_word(self, word):
         if word in self._word_to_position:
             return self._word_to_position[word]
@@ -87,29 +69,12 @@ class Vocab:
 def get_vocab(data_dir="data"):
     position_to_word = {}
     word_to_position = {}
-    char_counts = {}
     i = 0
     with open(os.path.join(data_dir, constants.VOCAB_FILE), encoding="utf-8") as f:
         for line in f:
             word = line[:-1]
             word_to_position[word] = i
-            for char in word:
-                if char in char_counts:
-                    char_counts[char] = char_counts[char] + 1
-                else:
-                    char_counts[char] = 1
             i += 1
     position_to_word = {i:word for word, i in word_to_position.items()}
-    sorted_chars = sorted(char_counts.items(), key=operator.itemgetter(1),
-            reverse=True)
-    chars_list = [x[0] for x in sorted_chars[:MAX_CHARS]]
-    char_to_position = {}
-    i = 0
-    for char in chars_list:
-        char_to_position[char] = i
-        i += 1
-    position_to_char = {i:char for char,i in char_to_position.items()}
     print("Vocab size: " + str(len(word_to_position)))
-    print("Num chars in vocab: " + str(len(char_to_position)))
-    return Vocab(word_to_position, position_to_word, char_to_position,
-            position_to_char)
+    return Vocab(word_to_position, position_to_word)

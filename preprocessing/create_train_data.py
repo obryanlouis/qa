@@ -7,7 +7,6 @@ import os
 import preprocessing.constants as constants
 import time
 
-from preprocessing.char_util import *
 from preprocessing.dataset_files_saver import *
 from preprocessing.dataset_files_wrapper import *
 from preprocessing.file_util import *
@@ -21,8 +20,9 @@ from preprocessing.vocab_util import get_vocab
 # answers list is accurate and includes it in the data set.
 
 class DataParser():
-    def __init__(self, data_dir):
+    def __init__(self, data_dir, download_dir):
         self.data_dir = data_dir
+        self.download_dir = download_dir
         self.value_idx = 0
         self.vocab = None
         self.nlp = None
@@ -33,13 +33,12 @@ class DataParser():
     def _parse_data_from_tokens_list(self, tokens_list):
         """Input: A list of TokenizedWord.
 
-           Ouptut: (vocab_ids_list, words_list, vocab_ids_set, char_lists,
+           Ouptut: (vocab_ids_list, words_list, vocab_ids_set,
                    pos_list, ner_list)
         """
         vocab_ids_list = []
         words_list = []
         vocab_ids_set = set()
-        char_lists = []
         pos_list = []
         ner_list = []
         for zz in range(len(tokens_list)):
@@ -49,19 +48,14 @@ class DataParser():
             vocab_ids_list.append(vocab_id)
             vocab_ids_set.add(vocab_id)
             words_list.append(word)
-            char_list = []
-            for char in word:
-                char_list.append(self.vocab.get_id_for_char(char))
-            char_lists.append(char_list)
             pos_list.append(self.pos_categories.get_id_for_word(token.pos))
             ner_list.append(self.ner_categories.get_id_for_word(token.ner))
-        return vocab_ids_list, words_list, vocab_ids_set, char_lists, \
-            pos_list, ner_list
+        return vocab_ids_list, words_list, vocab_ids_set, pos_list, ner_list
 
     def _maybe_add_samples(self, tok_context, tok_question, qa,
             ctx_offset_dict, ctx_end_offset_dict, list_contexts, list_word_in_question,
             list_questions, list_word_in_context, spans, num_values, text_tokens,
-            question_ids, question_ids_to_ground_truths, context_chars, question_chars,
+            question_ids, question_ids_to_ground_truths,
             context_pos, question_pos, context_ner, question_ner,
             is_dev):
         first_answer = True
@@ -105,18 +99,16 @@ class DataParser():
             question_ids.append(self.question_id)
 
             ctx_vocab_ids_list, ctx_words_list, ctx_vocab_ids_set, \
-                ctx_char_lists, ctx_pos_list, ctx_ner_list = \
+                ctx_pos_list, ctx_ner_list = \
                 self._parse_data_from_tokens_list(tok_context)
             text_tokens.append(ctx_words_list)
-            context_chars.append(ctx_char_lists)
             list_contexts.append(ctx_vocab_ids_list)
             context_pos.append(ctx_pos_list)
             context_ner.append(ctx_ner_list)
 
             qst_vocab_ids_list, qst_words_list, qst_vocab_ids_set, \
-                qst_char_lists, qst_pos_list, qst_ner_list = \
+                qst_pos_list, qst_ner_list = \
                 self._parse_data_from_tokens_list(tok_question)
-            question_chars.append(qst_char_lists)
             list_questions.append(qst_vocab_ids_list)
             question_pos.append(qst_pos_list)
             question_ner.append(qst_ner_list)
@@ -147,9 +139,6 @@ class DataParser():
                 word in the question is present in the context
             spans: numpy array of shape (num_samples, 2)
             text_tokens: list of strings in the context
-            context_chars: a list of lists of lists of characters the contexts
-            question_chars: a list of lists of lists of characters in the
-                questions
             question_ids: a list of ints that indicates which question the
                 given sample is part of. this has the same length as
                 |contexts| and |questions|. multiple samples may come from
@@ -173,8 +162,6 @@ class DataParser():
             list_word_in_context = []
             question_ids = []
             question_ids_to_ground_truths = {}
-            context_chars = []
-            question_chars = []
             context_pos = []
             question_pos = []
             context_ner = []
@@ -205,8 +192,8 @@ class DataParser():
                                 list_word_in_question, list_questions,
                                 list_word_in_context, spans, num_values,
                                 text_tokens, question_ids,
-                                question_ids_to_ground_truths, context_chars,
-                                question_chars, context_pos, question_pos,
+                                question_ids_to_ground_truths,
+                                context_pos, question_pos,
                                 context_ner, question_ner, is_dev)
             print("")
             spans = np.array(spans[:self.value_idx], dtype=np.int32)
@@ -217,8 +204,6 @@ class DataParser():
                 list_word_in_context = list_word_in_context,
                 spans = spans,
                 text_tokens = text_tokens,
-                context_chars = context_chars,
-                question_chars = question_chars,
                 question_ids = question_ids,
                 question_ids_to_ground_truths = question_ids_to_ground_truths,
                 context_pos = context_pos,
@@ -230,19 +215,19 @@ class DataParser():
         return [py_arr + [pad_value] * (max_len - len(py_arr)) for py_arr in list_of_py_arrays]
 
     def create_train_data(self):
-        train_files_wrapper = DatasetFilesWrapper.create_train_files_wrapper(self.data_dir)
-        dev_files_wrapper = DatasetFilesWrapper.create_dev_files_wrapper(self.data_dir)
+        train_folder = os.path.join(self.data_dir, constants.TRAIN_FOLDER_NAME)
+        dev_folder = os.path.join(self.data_dir, constants.DEV_FOLDER_NAME)
+        train_files_wrapper = DatasetFilesWrapper(train_folder)
+        dev_files_wrapper = DatasetFilesWrapper(dev_folder)
 
-        file_names = train_files_wrapper.get_all_files() \
-            + dev_files_wrapper.get_all_files()
-        if all([os.path.exists(filename) for filename in file_names]):
-            print("Context, question, and span files already exist. Not creating data again.")
+        if all([len(os.listdir(f) > 0 for f in [train_folder, dev_folder]]):
+            print("Train & dev data already exist.")
             return
 
         print("Getting vocabulary")
         self.vocab = get_vocab(self.data_dir)
         print("Finished getting vocabulary")
-        self.nlp = StanfordCoreNlpCommunication(self.data_dir)
+        self.nlp = StanfordCoreNlpCommunication(self.download_dir)
         self.nlp.start_server()
         print("Waiting for Core NLP server to start")
         # TODO: improve this logic by actually pinging the server until it
