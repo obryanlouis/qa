@@ -142,7 +142,6 @@ class Trainer:
                       "percent done:", 100.0 * float(i) / float(total_iter), 
                       "loss:", loss_value,
                       "Sec/iter", time_per_iter, 
-                      "Norm", norm_value,
                       "time/epoch", readable_time(time_per_epoch), end="\r")
                 if i % self.options.log_every == 0:
                     if self.options.log_gradients:

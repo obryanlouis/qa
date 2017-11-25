@@ -31,12 +31,3 @@ class MatchLstm(BaseModel):
             decode_answer_pointer_boundary(self.options, self.batch_size,
                 self.keep_prob, self.spn_iterator, ctx_attention,
                 self.sq_dataset, question_outputs)
-
-    def get_loss_op(self):
-        return self.loss
-
-    def get_start_span_probs(self):
-        return self.start_span_probs
-
-    def get_end_span_probs(self):
-        return self.end_span_probs

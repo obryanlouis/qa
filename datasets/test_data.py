@@ -28,3 +28,6 @@ class TestData(SquadDataBase):
             size=(vocab_size + 2, WORD_DIM))
         self.word_vec_size = WORD_DIM
         self.max_word_len = WORD_LEN
+
+    def get_word_vec_size(self):
+        return self.word_vec_size

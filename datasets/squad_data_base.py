@@ -9,3 +9,7 @@ class SquadDataBase:
 
     def get_max_qst_len(self):
         return self.train_ds.qst.shape[1]
+
+    @abstractmethod
+    def get_word_vec_size(self):
+        pass

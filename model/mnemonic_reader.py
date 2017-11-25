@@ -28,12 +28,3 @@ class MnemonicReader(BaseModel):
         self.loss, self.start_span_probs, self.end_span_probs = \
             memory_answer_pointer(self.options, alignment, question_outputs,
                 ctx_dim, self.spn_iterator, self.sq_dataset, self.keep_prob)
-
-    def get_loss_op(self):
-        return self.loss
-
-    def get_start_span_probs(self):
-        return self.start_span_probs
-
-    def get_end_span_probs(self):
-        return self.end_span_probs

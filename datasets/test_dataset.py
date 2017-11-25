@@ -5,7 +5,7 @@ import numpy as np
 
 from datasets.sentence_util import *
 
-NUM_SAMPLES = 13
+NUM_SAMPLES = 100
 CTX_LEN = 19
 QST_LEN = 17
 

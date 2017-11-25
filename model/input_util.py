@@ -4,6 +4,30 @@
 import preprocessing.constants as constants
 import tensorflow as tf
 
+from model.fusion_net_util import *
+from model.tf_util import *
+
+def _create_word_fusion(options, sq_dataset, ctx_glove, qst_glove):
+    """See the FusionNet paper https://arxiv.org/pdf/1711.07341.pdf.
+
+       Inputs:
+            ctx_glove: Context GloVE vectors of size [batch_size, M, d]
+            qst_glove: Question GloVE vectors of size [batch_size, N, d]
+
+       Output:
+            A tensor of size [batch_size, M, d]
+    """
+    with tf.variable_scope("word_fusion"):
+        vec_dim = sq_dataset.get_word_vec_size()
+        W = tf.get_variable("W", shape=[vec_dim, vec_dim],
+            dtype=tf.float32) # size = [d, d]
+        ctx_times_W = tf.nn.relu(multiply_tensors(ctx_glove, W)) # size = [batch_size, M, d]
+        qst_times_W = tf.nn.relu(multiply_tensors(qst_glove, W)) # size = [batch_size, N, d]
+        alpha = tf.matmul(ctx_times_W,
+            tf.transpose(qst_times_W, perm=[0, 2, 1])) # size = [batch_size, M, N]
+        alpha_softmax = tf.nn.softmax(alpha, dim=2) # size = [batch_size, M, N]
+        return tf.matmul(alpha_softmax, qst_glove) # size = [batch_size, M, d]
+
 def _create_word_similarity(primary_iterator, secondary_iterator, v_wiq_or_wic):
     """Creates a word similarity tensor, which is used as an input feature.
        Inputs:
@@ -62,6 +86,13 @@ def _add_char_embedding_inputs(scope, char_embedding, char_data, options,
 def _cast_int32(tensor):
     return tf.cast(tensor, dtype=tf.int32)
 
+class ModelInputs:
+    def __init__(self, ctx_glove, qst_glove, ctx_concat, qst_concat):
+        self.ctx_glove = ctx_glove # Just the GloVE vectors
+        self.qst_glove = qst_glove
+        self.ctx_concat = ctx_concat # The full set of features
+        self.qst_concat = qst_concat
+
 def create_model_inputs(words_placeholder, ctx, qst, ctx_chars, qst_chars,
         options, wiq, wic, sq_dataset, ctx_pos, qst_pos, ctx_ner, qst_ner):
     with tf.variable_scope("model_inputs"):
@@ -69,6 +100,9 @@ def create_model_inputs(words_placeholder, ctx, qst, ctx_chars, qst_chars,
         qst_embedded = tf.nn.embedding_lookup(words_placeholder, qst)
         ctx_inputs_list = [ctx_embedded]
         qst_inputs_list = [qst_embedded]
+        if options.use_word_fusion_feature:
+            ctx_inputs_list.append(_create_word_fusion(options, sq_dataset,
+                ctx_embedded, qst_embedded))
         if options.use_word_in_question_feature:
             wiq_sh = tf.shape(wiq)
             wiq_feature_shape = [wiq_sh[0], wiq_sh[1]] + [1]
@@ -96,6 +130,9 @@ def create_model_inputs(words_placeholder, ctx, qst, ctx_chars, qst_chars,
             ctx_inputs_list.append(tf.nn.embedding_lookup(ner_embedding, _cast_int32(ctx_ner)))
             qst_inputs_list.append(tf.nn.embedding_lookup(ner_embedding, _cast_int32(qst_ner)))
         if len(ctx_inputs_list) == 1:
-            return ctx_inputs_list[0], qst_inputs_list[0]
+            return ModelInputs(ctx_embedded, qst_embedded, ctx_embedded,
+                qst_embedded)
         else:
-            return tf.concat(ctx_inputs_list, axis=-1), tf.concat(qst_inputs_list, axis=-1)
+            return ModelInputs(ctx_embedded, qst_embedded,
+                tf.concat(ctx_inputs_list, axis=-1),
+                tf.concat(qst_inputs_list, axis=-1))

@@ -40,7 +40,7 @@ class BaseModel:
     def setup(self):
         self.keep_prob = tf.placeholder(tf.float32)
         self.batch_size = tf.shape(self.ctx_iterator)[0]
-        self.ctx_inputs, self.qst_inputs = create_model_inputs(
+        model_inputs = create_model_inputs(
                 self.embeddings, self.ctx_iterator,
                 self.qst_iterator, self.ctx_chars_iterator,
                 self.qst_chars_iterator,
@@ -48,6 +48,10 @@ class BaseModel:
                 self.wic_iterator, self.sq_dataset,
                 self.ctx_pos_iterator, self.qst_pos_iterator,
                 self.ctx_ner_iterator, self.qst_ner_iterator)
+        self.ctx_inputs = model_inputs.ctx_concat
+        self.qst_inputs = model_inputs.qst_concat
+        self.ctx_glove = model_inputs.ctx_glove
+        self.qst_glove = model_inputs.qst_glove
 
     def get_start_spans(self):
         return tf.argmax(self.get_start_span_probs(), axis=1)
@@ -55,14 +59,11 @@ class BaseModel:
     def get_end_spans(self):
         return tf.argmax(self.get_end_span_probs(), axis=1)
 
-    @abstractmethod
     def get_loss_op(self):
-        pass
+        return self.loss
 
-    @abstractmethod
     def get_start_span_probs(self):
-        pass
+        return self.start_span_probs
 
-    @abstractmethod
     def get_end_span_probs(self):
-        pass
+        return self.end_span_probs

@@ -57,3 +57,6 @@ class SquadData(SquadDataBase):
             np.zeros((2, self.embeddings.shape[1]))))
         self.word_vec_size = constants.WORD_VEC_DIM
         self.max_word_len = constants.MAX_WORD_LEN
+
+    def get_word_vec_size(self):
+        return self.word_vec_size
