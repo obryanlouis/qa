@@ -8,7 +8,6 @@ import time
 from datasets.test_data import TestData
 from datasets.squad_data import SquadData
 from train.s3_util import *
-from train.tf_dataset import *
 
 def create_checkpoint_file_name(options):
     return os.path.join(options.checkpoint_dir, create_s3_save_key(options))
@@ -27,16 +26,9 @@ def create_session():
 def create_saver():
     return tf.train.Saver(var_list=tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES))
 
-def create_tf_dataset(options, sq_dataset):
-    print("Creating TensorFlow dataset.")
-    create_tf_dataset_start = time.time()
-    tf_dataset = TfDataset(options, sq_dataset)
-    print("Time to create TensorFlow dataset: %s"
-          % (time.time() - create_tf_dataset_start))
-    return tf_dataset
-
 def maybe_restore_model(s3, s3_save_key, options, session,
-        checkpoint_file_name, saver, embeddings_placeholder, embeddings):
+        checkpoint_file_name, saver, embeddings_placeholder, embeddings,
+        word_chars_placeholder, word_chars):
     print("Restoring or creating new model...")
     start = time.time()
     maybe_download_files_from_s3(s3, s3_save_key, options.checkpoint_dir, options)
@@ -47,5 +39,6 @@ def maybe_restore_model(s3, s3_save_key, options, session,
         print("Creating model with new parameters")
         session.run(tf.global_variables_initializer(), feed_dict={
             embeddings_placeholder: embeddings,
+            word_chars_placeholder: word_chars,
         })
     print("Model initialization time %s" % (time.time() - start))

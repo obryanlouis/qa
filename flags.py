@@ -22,7 +22,7 @@ f.DEFINE_float("min_learning_rate", 1e-6,
         "Minimum learning rate, even after decay.")
 f.DEFINE_float("learning_rate_decay", 0.7,
         "Learning rate to apply continuously over each epoch.")
-f.DEFINE_string("downloads_dir", "downloads", "Directory for data downloads.")
+f.DEFINE_string("download_dir", "downloads", "Directory for data downloads.")
 f.DEFINE_string("data_dir", "data",
         "Directory with word embeddings, vocab, and training/dev data.")
 f.DEFINE_string("evaluation_dir", "evaluation_results",
@@ -90,9 +90,6 @@ f.DEFINE_boolean("use_character_data", True, "Whether to add character-level" +
         "data to the inputs.")
 f.DEFINE_integer("character_embedding_size", 30, "Size of character " +
         "embeddings. Only applicable if character-level data is enabled.")
-f.DEFINE_float("truncate_dataset_percent", 1.0, "Percent of the dataset" +
-        "to use for training. If 1.0, then the full training set will be" +
-        "used.")
 f.DEFINE_integer("num_interactive_alignment_hops", 2, "Number of hops for " +
         "interactive alignment (if the model uses it).")
 f.DEFINE_integer("num_memory_answer_pointer_hops", 2, "Number of hops for " +

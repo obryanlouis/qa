@@ -52,12 +52,12 @@ class DataParser():
             ner_list.append(self.ner_categories.get_id_for_word(token.ner))
         return vocab_ids_list, words_list, vocab_ids_set, pos_list, ner_list
 
-    def _maybe_add_samples(self, tok_context, tok_question, qa,
-            ctx_offset_dict, ctx_end_offset_dict, list_contexts, list_word_in_question,
-            list_questions, list_word_in_context, spans, num_values, text_tokens,
-            question_ids, question_ids_to_ground_truths,
-            context_pos, question_pos, context_ner, question_ner,
-            is_dev):
+    def _maybe_add_samples(self, tok_context=None, tok_question=None, qa=None,
+            ctx_offset_dict=None, ctx_end_offset_dict=None, list_contexts=None, list_word_in_question=None,
+            list_questions=None, list_word_in_context=None, spans=None, num_values=None, text_tokens_dict=None,
+            question_ids=None, question_ids_to_ground_truths=None,
+            context_pos=None, question_pos=None, context_ner=None, question_ner=None,
+            is_dev=None):
         first_answer = True
         for answer in qa["answers"]:
             answer_start = answer["answer_start"]
@@ -101,7 +101,7 @@ class DataParser():
             ctx_vocab_ids_list, ctx_words_list, ctx_vocab_ids_set, \
                 ctx_pos_list, ctx_ner_list = \
                 self._parse_data_from_tokens_list(tok_context)
-            text_tokens.append(ctx_words_list)
+            text_tokens_dict[self.question_id] = ctx_words_list
             list_contexts.append(ctx_vocab_ids_list)
             context_pos.append(ctx_pos_list)
             context_ner.append(ctx_ner_list)
@@ -138,7 +138,8 @@ class DataParser():
             word_in_context: list of lists of booleans indicating whether each
                 word in the question is present in the context
             spans: numpy array of shape (num_samples, 2)
-            text_tokens: list of strings in the context
+            text_tokens_dict: a dictionary of { question_id -> list of strings 
+                in the context }
             question_ids: a list of ints that indicates which question the
                 given sample is part of. this has the same length as
                 |contexts| and |questions|. multiple samples may come from
@@ -148,7 +149,7 @@ class DataParser():
                 the same as in the above |question_ids| return value and whose
                 values are sets of acceptable answer strings
         """
-        filename = os.path.join(self.data_dir, data_file)
+        filename = os.path.join(self.download_dir, data_file)
         print("Reading data from file", filename)
         with open(filename) as data_file: 
             data = json.load(data_file)
@@ -158,7 +159,7 @@ class DataParser():
             list_contexts = []
             list_word_in_question = []
             list_questions = []
-            text_tokens = []
+            text_tokens_dict = {}
             list_word_in_context = []
             question_ids = []
             question_ids_to_ground_truths = {}
@@ -167,7 +168,11 @@ class DataParser():
             context_ner = []
             question_ner = []
             self.value_idx = 0
+            article_id = 0 # remove
             for article in dataset:
+                if article_id > 0: # remove
+                    break # remove
+                article_id += 1 # remove
                 for paragraph in article["paragraphs"]:
                     context = paragraph["context"]
                     tok_context = self.nlp.tokenize_text(context)
@@ -187,14 +192,14 @@ class DataParser():
                             continue
                         found_answer_in_context = False
                         found_answer_in_context = self._maybe_add_samples(
-                                tok_context, tok_question, qa, ctx_offset_dict,
-                                ctx_end_offset_dict, list_contexts,
-                                list_word_in_question, list_questions,
-                                list_word_in_context, spans, num_values,
-                                text_tokens, question_ids,
-                                question_ids_to_ground_truths,
-                                context_pos, question_pos,
-                                context_ner, question_ner, is_dev)
+                                tok_context=tok_context, tok_question=tok_question, qa=qa, ctx_offset_dict=ctx_offset_dict,
+                                ctx_end_offset_dict=ctx_end_offset_dict, list_contexts=list_contexts,
+                                list_word_in_question=list_word_in_question, list_questions=list_questions,
+                                list_word_in_context=list_word_in_context, spans=spans, num_values=num_values,
+                                text_tokens_dict=text_tokens_dict, question_ids=question_ids,
+                                question_ids_to_ground_truths=question_ids_to_ground_truths,
+                                context_pos=context_pos, question_pos=question_pos,
+                                context_ner=context_ner, question_ner=question_ner, is_dev=is_dev)
             print("")
             spans = np.array(spans[:self.value_idx], dtype=np.int32)
             return RawTrainingData(
@@ -203,7 +208,7 @@ class DataParser():
                 list_questions = list_questions,
                 list_word_in_context = list_word_in_context,
                 spans = spans,
-                text_tokens = text_tokens,
+                text_tokens_dict = text_tokens_dict,
                 question_ids = question_ids,
                 question_ids_to_ground_truths = question_ids_to_ground_truths,
                 context_pos = context_pos,
@@ -220,7 +225,7 @@ class DataParser():
         train_files_wrapper = DatasetFilesWrapper(train_folder)
         dev_files_wrapper = DatasetFilesWrapper(dev_folder)
 
-        if all([len(os.listdir(f) > 0 for f in [train_folder, dev_folder]]):
+        if all([len(os.listdir(f)) > 0 for f in [train_folder, dev_folder]]):
             print("Train & dev data already exist.")
             return
 

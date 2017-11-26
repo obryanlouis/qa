@@ -6,8 +6,10 @@ import tensorflow as tf
 from model.base_model import BaseModel
 
 class DebugModel(BaseModel):
-    def __init__(self, options, tf_iterators, sq_dataset, embeddings):
-        super().__init__(options, tf_iterators, sq_dataset, embeddings)
+    def __init__(self, options, tf_iterators, sq_dataset, embeddings,
+            word_chars):
+        super().__init__(options, tf_iterators, sq_dataset, embeddings,
+            word_chars)
         self.loss = tf.get_variable("debug_loss", shape=[],
                 dtype=tf.float32, initializer=tf.zeros_initializer())
 

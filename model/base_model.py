@@ -7,29 +7,24 @@ from abc import ABCMeta, abstractmethod
 from model.input_util import *
 
 class BaseModel:
-    def __init__(self, options, tf_iterators, sq_dataset, embeddings):
+    def __init__(self, options, tf_iterators, sq_dataset, embeddings,
+            word_chars):
         self.sq_dataset = sq_dataset
         self.options = options
-        self.batch_size = None
         self.num_words = self.sq_dataset.embeddings.shape[0]
         self.word_dim = self.sq_dataset.embeddings.shape[1]
-        self.char_embedding_placeholder = None
-        self.keep_prob = None
         self.ctx_iterator = tf_iterators.ctx
         self.qst_iterator = tf_iterators.qst
-        self.ctx_chars_iterator = tf_iterators.ctx_chars
-        self.qst_chars_iterator = tf_iterators.qst_chars
         self.spn_iterator = tf_iterators.spn
-        self.data_index_iterator = tf_iterators.data_index
-        self.wiq_iterator = tf_iterators.wiq
-        self.wic_iterator = tf_iterators.wic
-        self.ctx_pos_iterator = tf_iterators.ctx_pos
-        self.qst_pos_iterator = tf_iterators.qst_pos
-        self.ctx_ner_iterator = tf_iterators.ctx_ner
-        self.qst_ner_iterator = tf_iterators.qst_ner
-        self.ctx_inputs = None
-        self.qst_inputs = None
+        self.data_index_iterator = tf_iterators.question_ids
+        self.wiq_iterator = tf_iterators.word_in_question
+        self.wic_iterator = tf_iterators.word_in_context
+        self.ctx_pos_iterator = tf_iterators.context_pos
+        self.qst_pos_iterator = tf_iterators.question_pos
+        self.ctx_ner_iterator = tf_iterators.context_ner
+        self.qst_ner_iterator = tf_iterators.question_ner
         self.embeddings = embeddings
+        self.word_chars = word_chars
 
     def get_data_index_iterator(self):
         return self.data_index_iterator
@@ -42,16 +37,19 @@ class BaseModel:
         self.batch_size = tf.shape(self.ctx_iterator)[0]
         model_inputs = create_model_inputs(
                 self.embeddings, self.ctx_iterator,
-                self.qst_iterator, self.ctx_chars_iterator,
-                self.qst_chars_iterator,
+                self.qst_iterator,
                 self.options, self.wiq_iterator,
                 self.wic_iterator, self.sq_dataset,
                 self.ctx_pos_iterator, self.qst_pos_iterator,
-                self.ctx_ner_iterator, self.qst_ner_iterator)
+                self.ctx_ner_iterator, self.qst_ner_iterator,
+                self.word_chars)
         self.ctx_inputs = model_inputs.ctx_concat
         self.qst_inputs = model_inputs.qst_concat
         self.ctx_glove = model_inputs.ctx_glove
         self.qst_glove = model_inputs.qst_glove
+
+    def get_qst(self):
+        return self.qst_iterator
 
     def get_start_spans(self):
         return tf.argmax(self.get_start_span_probs(), axis=1)

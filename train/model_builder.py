@@ -7,18 +7,21 @@ import time
 from model.model_types import MODEL_TYPES
 
 class ModelBuilder:
-    def __init__(self, optimizer, options, tf_dataset, sq_dataset, embeddings,
+    def __init__(self, optimizer, options, sq_dataset, embeddings, word_chars,
             compute_gradients):
         self.sq_dataset = sq_dataset
         self.optimizer = optimizer
         self.options = options
         self.towers = []
-        self.tf_dataset = tf_dataset
         self.compute_gradients = compute_gradients
         self.tower_grads = []
         self.loss = None
         self.embeddings = embeddings
+        self.word_chars = word_chars
         self._setup()
+
+    def get_num_towers(self):
+        return len(self.towers)
 
     def get_towers(self):
         return self.towers
@@ -37,7 +40,8 @@ class ModelBuilder:
     def _add_tower_and_compute_loss(self, scope, iterators):
         print("Creating tower in model")
         tower = MODEL_TYPES[self.options.model_type](self.options,
-                iterators, self.sq_dataset, self.embeddings)
+                iterators, self.sq_dataset, self.embeddings,
+                self.word_chars)
         tower.setup()
         print("Tower created")
         self.towers.append(tower)
@@ -54,7 +58,7 @@ class ModelBuilder:
             print("Creating towers")
             with tf.variable_scope(tf.get_variable_scope()):
                 if self.options.num_gpus == 0:
-                    iterators = self.tf_dataset.create_tf_iterators()
+                    iterators = self.sq_dataset.create_iterators()
                     tower_start_time = time.time()
                     self.loss = self._add_tower_and_compute_loss("single_tower_scope",
                             iterators)
@@ -68,7 +72,7 @@ class ModelBuilder:
                     for i in range(self.options.num_gpus):
                         with tf.device('/gpu:%d' % i):
                             with tf.name_scope('tower_%d' % i) as scope:
-                                iterators = self.tf_dataset.create_tf_iterators()
+                                iterators = self.sq_dataset.create_iterators()
                                 tower_start_time = time.time()
                                 self.loss = self._add_tower_and_compute_loss(scope,
                                         iterators)

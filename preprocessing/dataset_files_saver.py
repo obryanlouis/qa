@@ -3,6 +3,7 @@
 
 import math
 import numpy as np
+import preprocessing.constants as constants
 
 from preprocessing.file_util import *
 
@@ -34,9 +35,28 @@ class DatasetFilesSaver():
                     float(constants.MAX_SAMPLES_PER_SPLIT))))
             next_batch_idx = batch_idx + constants.MAX_SAMPLES_PER_SPLIT
 
+            print("Saving question ids")
+            question_ids_np_arr = np.array(
+                self.data.question_ids[batch_idx:next_batch_idx],
+                dtype=np.int32)
+            np.save(file_names.question_ids_file_name, question_ids_np_arr)
+
             print("Saving text tokens to binary pickle files")
+            filtered_text_tokens = {}
+            filtered_gnd_truths_dict = {}
+            for z in range(question_ids_np_arr.shape[0]):
+                question_id = question_ids_np_arr[z]
+                filtered_gnd_truths_dict[question_id] = \
+                    self.data.question_ids_to_ground_truths[question_id]
+                filtered_text_tokens[question_id] = \
+                    self.data.text_tokens_dict[question_id]
+
             save_pickle_file(file_names.text_tokens_file_name,
-                self.data.text_tokens[batch_idx:next_batch_idx])
+                filtered_text_tokens)
+
+            print("Saving question ids to ground truths dict")
+            save_pickle_file(file_names.question_ids_to_ground_truths_file_name,
+                filtered_gnd_truths_dict)
 
             print("Saving span numpy arrays")
             np.save(file_names.spn_file_name,
@@ -63,16 +83,6 @@ class DatasetFilesSaver():
                 self.data.list_word_in_context[batch_idx:next_batch_idx],
                 self.max_ctx_length, 0), dtype=np.float32)
             np.save(file_names.word_in_context_file_name, word_in_context_np_arr)
-
-            print("Saving question ids")
-            question_ids_np_arr = np.array(
-                self.data.question_ids[batch_idx:next_batch_idx],
-                dtype=np.int32)
-            np.save(file_names.question_ids_file_name, question_ids_np_arr)
-
-            print("Saving question ids to ground truths dict")
-            save_pickle_file(file_names.question_ids_to_ground_truths_file_name,
-                self.data.question_ids_to_ground_truths[batch_idx:next_batch_idx])
 
             print("Saving POS and NER tags")
             ctx_pos_np_arr = np.array(self._create_padded_array(
