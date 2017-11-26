@@ -11,14 +11,14 @@ from preprocessing.tokenized_word import *
 from pycorenlp import StanfordCoreNLP
 
 class StanfordCoreNlpCommunication():
-    def __init__(self, data_dir):
+    def __init__(self, download_dir):
         self.server_process = None
-        self.data_dir = data_dir
+        self.download_dir = download_dir
         self.nlp = None
 
     def start_server(self):
         command = [ "java", "-cp",
-        os.path.join(self.data_dir,
+        os.path.join(self.download_dir,
                 "stanford-corenlp-full-2017-06-09/*"),
         "edu.stanford.nlp.pipeline.StanfordCoreNLPServer", "-port", constants.STANFORD_CORENLP_PORT,
         "-quiet"]

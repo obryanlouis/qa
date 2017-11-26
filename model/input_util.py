@@ -54,8 +54,8 @@ def _create_word_similarity(primary_iterator, secondary_iterator, v_wiq_or_wic):
 
 def _create_char_embedding(sq_dataset, options):
     return tf.get_variable("char_embeddings",
-            shape=[sq_dataset.vocab.get_num_chars_including_padding(),
-                   options.character_embedding_size],
+            shape=[sq_dataset.word_chars.shape[0],
+                options.character_embedding_size],
             dtype=tf.float32)
 
 def _run_char_birnn(scope, embedded_chars_tensor, options, sq_dataset):
@@ -93,8 +93,9 @@ class ModelInputs:
         self.ctx_concat = ctx_concat # The full set of features
         self.qst_concat = qst_concat
 
-def create_model_inputs(words_placeholder, ctx, qst, ctx_chars, qst_chars,
-        options, wiq, wic, sq_dataset, ctx_pos, qst_pos, ctx_ner, qst_ner):
+def create_model_inputs(words_placeholder, ctx, qst,
+        options, wiq, wic, sq_dataset, ctx_pos, qst_pos, ctx_ner, qst_ner,
+        word_chars):
     with tf.variable_scope("model_inputs"):
         ctx_embedded = tf.nn.embedding_lookup(words_placeholder, ctx)
         qst_embedded = tf.nn.embedding_lookup(words_placeholder, qst)
@@ -117,6 +118,8 @@ def create_model_inputs(words_placeholder, ctx, qst, ctx_chars, qst_chars,
             qst_inputs_list.append(_create_word_similarity(qst_embedded, ctx_embedded, v_wic))
         if options.use_character_data:
             char_embedding = _create_char_embedding(sq_dataset, options)
+            ctx_chars = tf.nn.embedding_lookup(word_chars, ctx)
+            qst_chars = tf.nn.embedding_lookup(word_chars, qst)
             _add_char_embedding_inputs("ctx_embedding", char_embedding,
                     ctx_chars, options, ctx_inputs_list, sq_dataset)
             _add_char_embedding_inputs("qst_embedding", char_embedding,

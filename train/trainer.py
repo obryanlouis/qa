@@ -16,21 +16,10 @@ from train.train_util import *
 
 class Trainer:
     def __init__(self, options):
-        self.model_builder = None
         self.options = options
-        self.session = None
-        self.sq_dataset = None
-        self.tf_dataset = None
-        self.saver = None
-        self.train_writer = None
-        self.val_writer = None
-        self.em = None
-        self.f1 = None
         self.summary_assignments = {}
-        self.s3 = None
         self.s3_save_key = create_s3_save_key(options)
         self.checkpoint_file_name = create_checkpoint_file_name(options)
-        self.optimizer = None
 
     def _perform_summary_assignment(self, summary, value):
         assignment_dict = self.summary_assignments[summary]
@@ -39,24 +28,22 @@ class Trainer:
 
     def train(self):
         train_start_time = time.time()
-        if self.options.use_s3:
-            self.s3 = boto3.resource('s3')
-        if not os.path.exists(self.options.checkpoint_dir):
-            os.makedirs(self.options.checkpoint_dir)
+        self.s3 = boto3.resource('s3') if self.options.use_s3 else None
+        os.makedirs(self.options.checkpoint_dir, exist_ok=True)
 
-        self.sq_dataset = create_sq_dataset(self.options)
         with tf.Graph().as_default(), tf.device('/cpu:0'):
             self.session = create_session()
+            self.sq_dataset = create_sq_dataset(self.options)
 
-            print("Creating embeddings variable")
-            embedding_placeholder = tf.placeholder(tf.float32, shape=[
-                self.sq_dataset.embeddings.shape[0],
-                self.sq_dataset.embeddings.shape[1]])
+            embedding_placeholder = tf.placeholder(tf.float32,
+                shape=self.sq_dataset.embeddings.shape)
             embedding_var = \
                 tf.Variable(embedding_placeholder, trainable=False)
-            print("Embeddings variable created")
+            word_chars_placeholder = tf.placeholder(tf.float32,
+                shape=self.sq_dataset.word_chars.shape)
+            word_chars_var = \
+                tf.Variable(word_chars_placeholder, trainable=False)
 
-            self.tf_dataset = create_tf_dataset(self.options, self.sq_dataset)
             learning_rate = tf.Variable(initial_value=
                 self.options.learning_rate, trainable=False, dtype=tf.float32)
             learning_rate_placeholder = tf.placeholder(tf.float32)
@@ -65,7 +52,7 @@ class Trainer:
             self.optimizer = tf.train.AdamOptimizer(
                 learning_rate=self.options.learning_rate)
             self.model_builder = ModelBuilder(self.optimizer, self.options,
-                self.tf_dataset, self.sq_dataset, embedding_var,
+                self.sq_dataset, embedding_var, word_chars_var,
                 compute_gradients=True)
             print("Applying gradients")
             apply_gradients_start_time = time.time()
@@ -109,14 +96,17 @@ class Trainer:
 
             maybe_restore_model(self.s3, self.s3_save_key, self.options,
                 self.session, self.checkpoint_file_name, self.saver,
-                embedding_placeholder, self.sq_dataset.embeddings)
+                embedding_placeholder, self.sq_dataset.embeddings,
+                word_chars_placeholder, self.sq_dataset.word_chars)
             maybe_print_model_parameters(self.options)
-            self.tf_dataset.setup_with_tf_session(self.session)
+            self.sq_dataset.setup_with_tf_session(self.session)
+            num_towers = self.model_builder.get_num_towers()
 
             print("Total setup time before starting training: %s"
                   % (time.time() - train_start_time))
             current_iter = int(self.session.run(iteration_num))
-            iterations_per_epoch = self.sq_dataset.train_ds.get_size() / \
+            total_ds_size = self.sq_dataset.estimate_total_train_ds_size()
+            iterations_per_epoch = total_ds_size / \
                 (self.options.batch_size * max(1, self.options.num_gpus))
             total_iter = max(int(self.options.epochs * iterations_per_epoch), 1)
             start_time = time.time()
@@ -131,8 +121,10 @@ class Trainer:
                     gradients_summary_value, norm_value = \
                     self.session.run([train_op, loss, incr_iter,
                         loss_summary, gradients_summary, global_norm], feed_dict=
-                        get_train_feed_dict(self.sq_dataset, self.tf_dataset,
+                        get_train_feed_dict(self.sq_dataset,
                             self.options, self.model_builder.get_towers()))
+                self.sq_dataset.increment_train_samples_processed(
+                    self.options.batch_size * num_towers)
                 iter_end = time.time()
                 time_per_iter = iter_end - iter_start
                 time_per_epoch = time_per_iter * iterations_per_epoch
@@ -153,7 +145,9 @@ class Trainer:
                         self.session.run([
                             loss_summary, gradients_summary, loss], 
                             feed_dict=get_dev_feed_dict(self.sq_dataset,
-                                self.tf_dataset, self.options, self.model_builder.get_towers()))
+                                self.options, self.model_builder.get_towers()))
+                    self.sq_dataset.increment_val_samples_processed(
+                        self.options.batch_size * num_towers)
                     if self.options.log_gradients:
                         self.val_writer.add_summary(gradients_summary_value, i)
                     if self.options.log_loss:
@@ -165,12 +159,14 @@ class Trainer:
                 if i % self.options.compute_accuracy_every == 0:
                     em, f1 = evaluate_train_partial(self.session,
                         self.model_builder.get_towers(), self.sq_dataset,
-                        self.options, self.tf_dataset)
+                        self.options)
                     print("")
                     print("[Train] F1", f1, "Em", em)
                     val_em, val_f1 = evaluate_dev_partial(self.session,
                         self.model_builder.get_towers(), self.sq_dataset,
-                        self.options, self.tf_dataset)
+                        self.options)
+                    self.sq_dataset.increment_val_samples_processed(
+                        self.options.num_evaluation_samples)
                     print("[Valid] F1", val_f1, "Em", val_em)
                     self._perform_summary_assignment(self.em, em)
                     self._perform_summary_assignment(self.f1, f1)
