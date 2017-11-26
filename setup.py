@@ -1,7 +1,7 @@
 import os
 import tensorflow as tf
 
-from preprocessing.create_cove_vectors import maybe_create_cove_vectors
+from preprocessing.save_cove_weights import save_cove_weights
 from preprocessing.create_train_data import DataParser
 from preprocessing.download_data import download_data
 from preprocessing.download_stanford_corenlp import download_stanford_corenlp
@@ -20,7 +20,7 @@ def main(_):
     split_vocab_and_embedding(data_dir, download_dir)
     DataParser(data_dir, download_dir).create_train_data()
     if options.use_cove_vectors:
-        maybe_create_cove_vectors(options)
+        save_cove_weights(options)
     maybe_upload_data_files_to_s3(options)
 
 if __name__ == "__main__":

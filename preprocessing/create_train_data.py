@@ -168,11 +168,7 @@ class DataParser():
             context_ner = []
             question_ner = []
             self.value_idx = 0
-            article_id = 0 # remove
             for article in dataset:
-                if article_id > 0: # remove
-                    break # remove
-                article_id += 1 # remove
                 for paragraph in article["paragraphs"]:
                     context = paragraph["context"]
                     tok_context = self.nlp.tokenize_text(context)

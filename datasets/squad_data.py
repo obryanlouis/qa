@@ -13,6 +13,7 @@ import tensorflow as tf
 from datasets.iterator_wrapper import *
 from datasets.file_util import *
 from preprocessing.vocab_util import get_vocab
+from util.file_util import *
 
 
 _CONTEXT_KEY = "context"
@@ -47,31 +48,30 @@ class _SquadDataset:
         self.current_file_number = 0
         self.files_dir = files_dir
 
-        self.all_files_in_files_dir = glob.glob(os.path.join(files_dir, "*"))
-        self.context_files = \
-            self._get_files_list(constants.CONTEXT_FILE_PATTERN)
-        self.question_files = \
-            self._get_files_list(constants.QUESTION_FILE_PATTERN)
-        self.span_files = \
-            self._get_files_list(constants.SPAN_FILE_PATTERN)
-        self.word_in_question_files = \
-            self._get_files_list(constants.WORD_IN_QUESTION_FILE_PATTERN)
-        self.word_in_context_files = \
-            self._get_files_list(constants.WORD_IN_CONTEXT_FILE_PATTERN)
-        self.question_ids_files = \
-            self._get_files_list(constants.QUESTION_IDS_FILE_PATTERN)
-        self.question_ids_to_gnd_truths_files = \
-            self._get_files_list(constants.QUESTION_IDS_TO_GND_TRUTHS_FILE_PATTERN)
-        self.context_pos_files = \
-            self._get_files_list(constants.CONTEXT_POS_FILE_PATTERN)
-        self.context_ner_files = \
-            self._get_files_list(constants.CONTEXT_NER_FILE_PATTERN)
-        self.question_pos_files = \
-            self._get_files_list(constants.QUESTION_POS_FILE_PATTERN)
-        self.question_ner_files = \
-            self._get_files_list(constants.QUESTION_NER_FILE_PATTERN)
-        self.text_tokens_files = \
-            self._get_files_list(constants.TEXT_TOKENS_FILE_PATTERN)
+        self.context_files = get_data_files_list(files_dir,
+            constants.CONTEXT_FILE_PATTERN)
+        self.question_files = get_data_files_list(files_dir,
+            constants.QUESTION_FILE_PATTERN)
+        self.span_files = get_data_files_list(files_dir,
+            constants.SPAN_FILE_PATTERN)
+        self.word_in_question_files = get_data_files_list(files_dir,
+            constants.WORD_IN_QUESTION_FILE_PATTERN)
+        self.word_in_context_files = get_data_files_list(files_dir,
+            constants.WORD_IN_CONTEXT_FILE_PATTERN)
+        self.question_ids_files = get_data_files_list(files_dir,
+            constants.QUESTION_IDS_FILE_PATTERN)
+        self.question_ids_to_gnd_truths_files = get_data_files_list(files_dir,
+            constants.QUESTION_IDS_TO_GND_TRUTHS_FILE_PATTERN)
+        self.context_pos_files = get_data_files_list(files_dir,
+            constants.CONTEXT_POS_FILE_PATTERN)
+        self.context_ner_files = get_data_files_list(files_dir,
+            constants.CONTEXT_NER_FILE_PATTERN)
+        self.question_pos_files = get_data_files_list(files_dir,
+            constants.QUESTION_POS_FILE_PATTERN)
+        self.question_ner_files = get_data_files_list(files_dir,
+            constants.QUESTION_NER_FILE_PATTERN)
+        self.text_tokens_files = get_data_files_list(files_dir,
+            constants.TEXT_TOKENS_FILE_PATTERN)
 
         assert len(self.context_files) > 0
         assert len(self.context_files) == len(self.question_files)
@@ -114,12 +114,6 @@ class _SquadDataset:
         list_text_tokens = self.text_tokens_dict[example_idx]
         return " ".join(list_text_tokens[start_idx: end_idx + 1])
 
-    def _get_files_list(self, file_name_pattern):
-        search_pattern = os.path.join(self.files_dir,
-            file_name_pattern.replace("%d", "[0-9]+"))
-        return [f for f in self.all_files_in_files_dir if \
-            re.match(search_pattern, f)]
-
     def _create_ds(self, placeholder):
         return tf.contrib.data.Dataset.from_tensor_slices(placeholder) \
             .batch(self.options.batch_size) \
@@ -135,6 +129,14 @@ class _SquadDataset:
         np_arr = np.load(full_file_name)[:,:max_second_dim]
         return np.pad(np_arr,
             pad_width=((0, 0), (0, max_second_dim - np_arr.shape[1])),
+            mode="constant",
+            constant_values=(pad_value,))
+
+    def _load_3d_np_arr_with_possible_padding(self, full_file_name,
+            max_second_dim, pad_value):
+        np_arr = np.load(full_file_name)[:,:max_second_dim, :]
+        return np.pad(np_arr,
+            pad_width=((0, 0), (0, max_second_dim - np_arr.shape[1]), (0, 0)),
             mode="constant",
             constant_values=(pad_value,))
 
@@ -202,16 +204,10 @@ class SquadData:
             self.handle, self.train_ds.zip_ds.output_types,
             self.train_ds.zip_ds.output_shapes)
 
-        self.embeddings = np.load(os.path.join(options.data_dir,
-            constants.EMBEDDING_FILE))
-        self.word_chars = np.load(os.path.join(options.data_dir,
-            constants.VOCAB_CHARS_FILE))
-        # Add in all 0 embeddings for the padding and unk vectors
-        self.embeddings = np.concatenate((self.embeddings,
-            np.zeros((2, self.embeddings.shape[1]))))
-        self.word_chars = np.concatenate((self.word_chars,
-            np.full((2, self.word_chars.shape[1]),
-                fill_value=embedding_util.CHAR_UNK_ID)))
+
+        self.embeddings = embedding_util.load_word_embeddings_including_unk_and_padding(options)
+        self.word_chars = embedding_util.load_word_char_embeddings_including_unk_and_padding(options)
+
         self.word_vec_size = constants.WORD_VEC_DIM
         self.max_word_len = constants.MAX_WORD_LEN
 

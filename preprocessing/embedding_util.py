@@ -12,6 +12,18 @@ MAX_CHARS = (2**8) - 2
 CHAR_PAD_ID = MAX_CHARS + 1
 CHAR_UNK_ID = CHAR_PAD_ID + 1
 
+def load_word_embeddings_including_unk_and_padding(options):
+    embeddings = np.load(os.path.join(options.data_dir,
+        constants.EMBEDDING_FILE))
+    # Add in all 0 embeddings for the padding and unk vectors
+    return np.concatenate((embeddings, np.zeros((2, embeddings.shape[1]))))
+
+def load_word_char_embeddings_including_unk_and_padding(options):
+    word_chars = np.load(os.path.join(options.data_dir,
+        constants.VOCAB_CHARS_FILE))
+    return np.concatenate((word_chars,
+        np.full((2, word_chars.shape[1]), fill_value=CHAR_UNK_ID)))
+
 def _get_line_count(filename):
     num_lines = 0
     with open(filename, "r", encoding="utf-8") as f:

@@ -5,10 +5,17 @@ VOCAB_CHARS_FILE = "vocab.chars.npy"
 TRAIN_SQUAD_FILE = "train-v1.1.json"
 DEV_SQUAD_FILE = "dev-v1.1.json"
 
+COVE_WEIGHTS_FOLDER = "cove_weights"
+COVE_WEIGHT_NAMES = ['weight_ih_l0', 'weight_hh_l0', 'bias_ih_l0',
+    'bias_hh_l0', 'weight_ih_l0_reverse', 'weight_hh_l0_reverse',
+    'bias_ih_l0_reverse', 'bias_hh_l0_reverse', 'weight_ih_l1',
+    'weight_hh_l1', 'bias_ih_l1', 'bias_hh_l1', 'weight_ih_l1_reverse',
+    'weight_hh_l1_reverse', 'bias_ih_l1_reverse', 'bias_hh_l1_reverse']
+
 # Training data is split into multiple batches of files because there is
 # too much data to fit in memory at once. File patterns below index batches
-# by an ordinal.
-MAX_SAMPLES_PER_SPLIT = 20000
+# by an ordinal. Adjust as necessary.
+MAX_SAMPLES_PER_SPLIT = 5000
 TRAIN_FOLDER_NAME = "train"
 DEV_FOLDER_NAME = "dev"
 CONTEXT_FILE_PATTERN = "context.%d.npy"
@@ -22,11 +29,7 @@ CONTEXT_POS_FILE_PATTERN = "context.pos.%d.npy"
 CONTEXT_NER_FILE_PATTERN = "context.ner.%d.npy"
 QUESTION_POS_FILE_PATTERN = "question.pos.%d.npy"
 QUESTION_NER_FILE_PATTERN = "question.ner.%d.npy"
-CONTEXT_COVE_FILE_PATTERN = "context.cove.%d.npy"
-QUESTION_COVE_FILE_PATTERN = "question.cove.%d.npy"
 TEXT_TOKENS_FILE_PATTERN = "text_tokens.%d"
-COVE_QST_FILE = "cove.qst.npy"
-COVE_CTX_FILE = "cove.ctx.npy"
 
 CORENLP_URL = "http://nlp.stanford.edu/software/stanford-corenlp-full-2017-06-09.zip"
 CORENLP_ZIP_FILE_NAME = "stanford-corenlp-full-2017-06-09.zip"
