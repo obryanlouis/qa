@@ -4,6 +4,7 @@
 import tensorflow as tf
 import time
 
+from model.cove_lstm import *
 from model.model_types import MODEL_TYPES
 
 class ModelBuilder:
@@ -41,7 +42,7 @@ class ModelBuilder:
         print("Creating tower in model")
         tower = MODEL_TYPES[self.options.model_type](self.options,
                 iterators, self.sq_dataset, self.embeddings,
-                self.word_chars)
+                self.word_chars, self.cove_cells)
         tower.setup()
         print("Tower created")
         self.towers.append(tower)
@@ -53,6 +54,9 @@ class ModelBuilder:
         with tf.device('/cpu:0'):
             self.loss = None
             create_model_start_time = time.time()
+            self.cove_cells = None
+            if self.options.use_cove_vectors:
+                self.cove_cells = load_cove_lstm(self.options)
             tower_creation_time = 0
             gradient_computation_time = 0
             print("Creating towers")

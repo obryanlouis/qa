@@ -5,10 +5,9 @@ https://arxiv.org/pdf/1705.02798.pdf
 import tensorflow as tf
 
 from model.rnn_util import *
-from model.rnn_sentence_util import *
 from model.semantic_fusion import *
 
-def run_alignment(options, batch_size, ctx, qst, ctx_dim, sq_dataset, keep_prob):
+def run_alignment(options, ctx, qst, ctx_dim, sq_dataset, keep_prob):
     with tf.variable_scope("alignment"):
         assert options.num_interactive_alignment_hops > 0
         c = ctx
@@ -17,13 +16,6 @@ def run_alignment(options, batch_size, ctx, qst, ctx_dim, sq_dataset, keep_prob)
                 c = _interactive_alignment(options, c, qst, ctx_dim, sq_dataset,
                         keep_prob)
                 c = _self_alignment(options, c, ctx_dim, sq_dataset)
-                sent_frags, sent_frags_len = get_sentence_fragments(
-                    sq_dataset, "sentence_fragments_" + str(z), options, c,
-                    ctx_dim, keep_prob) # size = [batch_size, sent_frags_len, 2 * rnn_size]
-                c = run_attention(options, c, ctx_dim, sent_frags,
-                    2 * options.rnn_size, "sent_frag_attention",
-                    batch_size, sent_frags_len, keep_prob,
-                    sq_dataset.get_max_ctx_len()) # size = [batch_size, max_ctx_length, 2 * rnn_size]
                 c = run_bidirectional_lstm("bidirectional_ctx_" + str(z),
                     c, keep_prob, options)
         return c

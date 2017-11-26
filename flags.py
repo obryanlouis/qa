@@ -100,8 +100,6 @@ f.DEFINE_integer("pos_embedding_size", 10, "Size of POS-tagging embedding")
 f.DEFINE_boolean("use_ner_feature", True, "Whether to use named entity " +
         "recognition as an extra feature to be fed into the model.")
 f.DEFINE_integer("ner_embedding_size", 10, "Size of NER embedding")
-f.DEFINE_integer("sent_frag_length", 15, "Max sentence fragment length" +
-        "(experimental).")
 f.DEFINE_boolean("use_word_fusion_feature", True, "Whether to use the word" +
         "fusion feature as a model input.")
 f.DEFINE_float("fusion_matrix_dimension", 250, "Dimension of the diagonal" +

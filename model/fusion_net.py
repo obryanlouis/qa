@@ -33,7 +33,6 @@ class FusionNet(BaseModel):
 
         # Step 3. Fuse the "history-of-word" question vectors into the
         # "history-of-word" context vectors.
-        # TODO: Add CoVE vectors to this.
         ctx_how = tf.concat([self.ctx_glove, ctx_low_level, ctx_high_level], axis=-1)
         qst_how = tf.concat([self.qst_glove, qst_low_level, qst_high_level], axis=-1)
         how_dim = ctx_how.get_shape()[-1]

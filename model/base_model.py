@@ -8,7 +8,7 @@ from model.input_util import *
 
 class BaseModel:
     def __init__(self, options, tf_iterators, sq_dataset, embeddings,
-            word_chars):
+            word_chars, cove_cells):
         self.sq_dataset = sq_dataset
         self.options = options
         self.num_words = self.sq_dataset.embeddings.shape[0]
@@ -25,6 +25,7 @@ class BaseModel:
         self.qst_ner_iterator = tf_iterators.question_ner
         self.embeddings = embeddings
         self.word_chars = word_chars
+        self.cove_cells = cove_cells
 
     def get_data_index_iterator(self):
         return self.data_index_iterator
@@ -42,7 +43,7 @@ class BaseModel:
                 self.wic_iterator, self.sq_dataset,
                 self.ctx_pos_iterator, self.qst_pos_iterator,
                 self.ctx_ner_iterator, self.qst_ner_iterator,
-                self.word_chars)
+                self.word_chars, self.cove_cells)
         self.ctx_inputs = model_inputs.ctx_concat
         self.qst_inputs = model_inputs.qst_concat
         self.ctx_glove = model_inputs.ctx_glove

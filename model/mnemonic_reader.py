@@ -21,7 +21,7 @@ class MnemonicReader(BaseModel):
                 self.options, ctx_dropout, qst_dropout, self.keep_prob)
         # Step 2. Run alignment on the passage and query to create a new
         # representation for the passage that is query-aware and self-aware.
-        alignment = run_alignment(self.options, self.batch_size, passage_outputs,
+        alignment = run_alignment(self.options, passage_outputs,
                 question_outputs, ctx_dim, self.sq_dataset, self.keep_prob) # size = [batch_size, max_ctx_length, 2 * rnn_size]
         # Step 3. Use a memory-based answer pointer mechanism to get the loss,
         # and start & end span probabilities

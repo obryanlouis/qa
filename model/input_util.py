@@ -4,6 +4,7 @@
 import preprocessing.constants as constants
 import tensorflow as tf
 
+from model.cove_lstm import *
 from model.fusion_net_util import *
 from model.tf_util import *
 
@@ -86,6 +87,21 @@ def _add_char_embedding_inputs(scope, char_embedding, char_data, options,
 def _cast_int32(tensor):
     return tf.cast(tensor, dtype=tf.int32)
 
+def _run_cove(inputs, cove_cells):
+    outputs, _ = tf.nn.bidirectional_dynamic_rnn(cove_cells.forward_cell_l0,
+        cove_cells.backward_cell_l0, inputs, dtype=tf.float32)
+    fw_outputs, bw_outputs = outputs
+    intermediate = tf.concat([fw_outputs, bw_outputs], axis=-1)
+    outputs, _ = tf.nn.bidirectional_dynamic_rnn(cove_cells.forward_cell_l1,
+        cove_cells.backward_cell_l1, intermediate, dtype=tf.float32)
+    fw_outputs, bw_outputs = outputs
+    return tf.concat([fw_outputs, bw_outputs], axis=-1)
+
+def _get_cove_vectors(options, ctx_glove, qst_glove, cove_cells):
+    ctx_outputs = _run_cove(ctx_glove, cove_cells)
+    qst_outputs = _run_cove(qst_glove, cove_cells)
+    return ctx_outputs, qst_outputs
+
 class ModelInputs:
     def __init__(self, ctx_glove, qst_glove, ctx_concat, qst_concat):
         self.ctx_glove = ctx_glove # Just the GloVE vectors
@@ -95,12 +111,15 @@ class ModelInputs:
 
 def create_model_inputs(words_placeholder, ctx, qst,
         options, wiq, wic, sq_dataset, ctx_pos, qst_pos, ctx_ner, qst_ner,
-        word_chars):
+        word_chars, cove_cells):
     with tf.variable_scope("model_inputs"):
         ctx_embedded = tf.nn.embedding_lookup(words_placeholder, ctx)
         qst_embedded = tf.nn.embedding_lookup(words_placeholder, qst)
         ctx_inputs_list = [ctx_embedded]
         qst_inputs_list = [qst_embedded]
+        if options.use_cove_vectors:
+            ctx_cove, qst_cove = _get_cove_vectors(options, ctx_embedded,
+                qst_embedded, cove_cells)
         if options.use_word_fusion_feature:
             ctx_inputs_list.append(_create_word_fusion(options, sq_dataset,
                 ctx_embedded, qst_embedded))

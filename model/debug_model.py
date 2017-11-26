@@ -7,9 +7,9 @@ from model.base_model import BaseModel
 
 class DebugModel(BaseModel):
     def __init__(self, options, tf_iterators, sq_dataset, embeddings,
-            word_chars):
+            word_chars, cove_cells):
         super().__init__(options, tf_iterators, sq_dataset, embeddings,
-            word_chars)
+            word_chars, cove_cells)
         self.loss = tf.get_variable("debug_loss", shape=[],
                 dtype=tf.float32, initializer=tf.zeros_initializer())
 
