@@ -67,6 +67,7 @@ def split_vocab_and_embedding(data_dir, download_dir):
     sorted_chars = sorted(char_counts.items(), key=operator.itemgetter(1),
         reverse=True)
     frequent_chars = dict((x[0], i) for i, x in enumerate(sorted_chars[:MAX_CHARS]))
+    print("")
     print("Creating word character data")
     for z in range(len(vocab_list)):
         word = vocab_list[z]
