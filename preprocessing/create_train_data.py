@@ -5,13 +5,13 @@ import json
 import numpy as np
 import os
 import preprocessing.constants as constants
+import spacy
 import time
 
 from preprocessing.dataset_files_saver import *
 from preprocessing.dataset_files_wrapper import *
 from preprocessing.file_util import *
 from preprocessing.raw_training_data import *
-from preprocessing.stanford_corenlp_util import StanfordCoreNlpCommunication
 from preprocessing.string_category import *
 from preprocessing.vocab_util import get_vocab
 
@@ -24,14 +24,12 @@ class DataParser():
         self.data_dir = data_dir
         self.download_dir = download_dir
         self.value_idx = 0
-        self.vocab = None
-        self.nlp = None
         self.question_id = 0
         self.ner_categories = StringCategory()
         self.pos_categories = StringCategory()
 
-    def _parse_data_from_tokens_list(self, tokens_list):
-        """Input: A list of TokenizedWord.
+    def _parse_data_from_tokens_list(self, tokens_list, tokens_ner_dict):
+        """Input: A spaCy doc.
 
            Ouptut: (vocab_ids_list, words_list, vocab_ids_set,
                    pos_list, ner_list)
@@ -43,21 +41,25 @@ class DataParser():
         ner_list = []
         for zz in range(len(tokens_list)):
             token = tokens_list[zz]
-            word = token.word
+            word = token.text
             vocab_id = self.vocab.get_id_for_word(word)
             vocab_ids_list.append(vocab_id)
             vocab_ids_set.add(vocab_id)
             words_list.append(word)
-            pos_list.append(self.pos_categories.get_id_for_word(token.pos))
-            ner_list.append(self.ner_categories.get_id_for_word(token.ner))
+            pos_list.append(self.pos_categories.get_id_for_word(token.pos_))
+            ner = tokens_ner_dict[token.idx].label_ \
+                if token.idx in tokens_ner_dict else "none"
+            ner_list.append(self.ner_categories.get_id_for_word(ner))
         return vocab_ids_list, words_list, vocab_ids_set, pos_list, ner_list
 
     def _maybe_add_samples(self, tok_context=None, tok_question=None, qa=None,
-            ctx_offset_dict=None, ctx_end_offset_dict=None, list_contexts=None, list_word_in_question=None,
-            list_questions=None, list_word_in_context=None, spans=None, num_values=None, text_tokens_dict=None,
-            question_ids=None, question_ids_to_ground_truths=None,
-            context_pos=None, question_pos=None, context_ner=None, question_ner=None,
-            is_dev=None):
+        ctx_offset_dict=None, ctx_end_offset_dict=None, list_contexts=None,
+        list_word_in_question=None, list_questions=None,
+        list_word_in_context=None, spans=None, num_values=None,
+        text_tokens_dict=None, question_ids=None,
+        question_ids_to_ground_truths=None, context_pos=None,
+        question_pos=None, context_ner=None, question_ner=None,
+        is_dev=None, ctx_ner_dict=None, qst_ner_dict=None):
         first_answer = True
         for answer in qa["answers"]:
             answer_start = answer["answer_start"]
@@ -71,18 +73,20 @@ class DataParser():
                 # If so, find the smallest surrounding text instead.
                 for z in range(len(tok_context)):
                     tok = tok_context[z]
-                    st = tok.start
-                    end = tok.end
+                    st = tok.idx
+                    end = st + len(tok_context.text)
                     if st <= answer_start and answer_start <= end:
                         tok_start = tok
+                        if z == len(tok_context) - 1:
+                            tok_end = tok
                     elif tok_start is not None:
                         tok_end = tok
                         if end >= answer_end:
                             break
             tok_start = tok_start if tok_start is not None else ctx_offset_dict[answer_start]
             tok_end = tok_end if tok_end is not None else ctx_end_offset_dict[answer_end]
-            tok_start_idx = tok_context.index(tok_start)
-            tok_end_idx = tok_context.index(tok_end)
+            tok_start_idx = list(tok_context).index(tok_start)
+            tok_end_idx = list(tok_context).index(tok_end)
             gnd_truths_list = []
             if self.question_id in question_ids_to_ground_truths:
                 gnd_truths_list = question_ids_to_ground_truths[self.question_id]
@@ -100,7 +104,7 @@ class DataParser():
 
             ctx_vocab_ids_list, ctx_words_list, ctx_vocab_ids_set, \
                 ctx_pos_list, ctx_ner_list = \
-                self._parse_data_from_tokens_list(tok_context)
+                self._parse_data_from_tokens_list(tok_context, ctx_ner_dict)
             text_tokens_dict[self.question_id] = ctx_words_list
             list_contexts.append(ctx_vocab_ids_list)
             context_pos.append(ctx_pos_list)
@@ -108,7 +112,7 @@ class DataParser():
 
             qst_vocab_ids_list, qst_words_list, qst_vocab_ids_set, \
                 qst_pos_list, qst_ner_list = \
-                self._parse_data_from_tokens_list(tok_question)
+                self._parse_data_from_tokens_list(tok_question, qst_ner_dict)
             list_questions.append(qst_vocab_ids_list)
             question_pos.append(qst_pos_list)
             question_ner.append(qst_ner_list)
@@ -128,6 +132,12 @@ class DataParser():
                 for qa in paragraph["qas"]:
                     num_values += 1
         return num_values
+
+    def _get_ner_dict(self, doc):
+        d = {}
+        for e in doc.ents:
+            d[e.start_char] = e
+        return d
 
     def _create_train_data_internal(self, data_file, is_dev):
         """Returns (contexts, word_in_question, questions, word_in_context, spans)
@@ -171,31 +181,40 @@ class DataParser():
             for article in dataset:
                 for paragraph in article["paragraphs"]:
                     context = paragraph["context"]
-                    tok_context = self.nlp.tokenize_text(context)
-                    if tok_context is None:
-                        continue
+                    tok_context = self.nlp(context)
+                    ctx_ner_dict = self._get_ner_dict(tok_context)
+                    assert tok_context is not None
                     ctx_offset_dict = {}
-                    for tok in tok_context:
-                        ctx_offset_dict[tok.start] = tok
                     ctx_end_offset_dict = {}
-                    for tok in tok_context:
-                        ctx_end_offset_dict[tok.end] = tok
+                    for z in range(len(tok_context)):
+                        tok = tok_context[z]
+                        ctx_offset_dict[tok.idx] = tok
+                        ctx_end_offset_dict[tok.idx + len(tok.text)] = tok
                     for qa in paragraph["qas"]:
                         self.question_id += 1
                         question = qa["question"]
-                        tok_question = self.nlp.tokenize_text(question)
-                        if tok_question is None:
-                            continue
+                        tok_question = self.nlp(question)
+                        qst_ner_dict = self._get_ner_dict(tok_question)
+                        assert tok_question is not None
                         found_answer_in_context = False
                         found_answer_in_context = self._maybe_add_samples(
-                                tok_context=tok_context, tok_question=tok_question, qa=qa, ctx_offset_dict=ctx_offset_dict,
-                                ctx_end_offset_dict=ctx_end_offset_dict, list_contexts=list_contexts,
-                                list_word_in_question=list_word_in_question, list_questions=list_questions,
-                                list_word_in_context=list_word_in_context, spans=spans, num_values=num_values,
-                                text_tokens_dict=text_tokens_dict, question_ids=question_ids,
-                                question_ids_to_ground_truths=question_ids_to_ground_truths,
-                                context_pos=context_pos, question_pos=question_pos,
-                                context_ner=context_ner, question_ner=question_ner, is_dev=is_dev)
+                            tok_context=tok_context,
+                            tok_question=tok_question, qa=qa,
+                            ctx_offset_dict=ctx_offset_dict,
+                            ctx_end_offset_dict=ctx_end_offset_dict,
+                            list_contexts=list_contexts,
+                            list_word_in_question=list_word_in_question,
+                            list_questions=list_questions,
+                            list_word_in_context=list_word_in_context,
+                            spans=spans, num_values=num_values,
+                            text_tokens_dict=text_tokens_dict,
+                            question_ids=question_ids,
+                            question_ids_to_ground_truths=question_ids_to_ground_truths,
+                            context_pos=context_pos, question_pos=question_pos,
+                            context_ner=context_ner, question_ner=question_ner,
+                            is_dev=is_dev,
+                            ctx_ner_dict=ctx_ner_dict,
+                            qst_ner_dict=qst_ner_dict)
             print("")
             spans = np.array(spans[:self.value_idx], dtype=np.int32)
             return RawTrainingData(
@@ -228,19 +247,13 @@ class DataParser():
         print("Getting vocabulary")
         self.vocab = get_vocab(self.data_dir)
         print("Finished getting vocabulary")
-        self.nlp = StanfordCoreNlpCommunication(self.download_dir)
-        self.nlp.start_server()
-        print("Waiting for Core NLP server to start")
-        # TODO: improve this logic by actually pinging the server until it
-        # responds.
-        time.sleep(5)
+        self.nlp = spacy.load("en")
         print("Getting DEV dataset")
         dev_raw_data = self._create_train_data_internal(
             constants.DEV_SQUAD_FILE, is_dev=True)
         print("Getting TRAIN dataset")
         train_raw_data = self._create_train_data_internal(
             constants.TRAIN_SQUAD_FILE, is_dev=False)
-        self.nlp.stop_server()
         print("Num NER categories", self.ner_categories.get_num_categories())
         print("Num POS categories", self.pos_categories.get_num_categories())
 

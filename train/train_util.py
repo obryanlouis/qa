@@ -20,6 +20,7 @@ def get_feed_dict(squad_data, options, towers, is_train):
         tower = towers[i]
         feed_dict[tower.get_keep_prob_placeholder()] = 1 if not is_train \
             else 1 - options.dropout
+        feed_dict[tower.get_is_train_placeholder()] = is_train
     train_handle = squad_data.get_train_handle()
     dev_handle = squad_data.get_dev_handle()
     tf_handle = squad_data.get_iterator_handle()

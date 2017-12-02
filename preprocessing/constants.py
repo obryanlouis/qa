@@ -30,9 +30,6 @@ QUESTION_POS_FILE_PATTERN = "question.pos.%d.npy"
 QUESTION_NER_FILE_PATTERN = "question.ner.%d.npy"
 TEXT_TOKENS_FILE_PATTERN = "text_tokens.%d"
 
-CORENLP_URL = "http://nlp.stanford.edu/software/stanford-corenlp-full-2017-06-09.zip"
-CORENLP_ZIP_FILE_NAME = "stanford-corenlp-full-2017-06-09.zip"
-
 VECTORS_URL = "http://nlp.stanford.edu/data/glove.840B.300d.zip"
 WORD_VEC_DIM = 300
 MAX_WORD_LEN = 25
@@ -45,5 +42,3 @@ SQUAD_DEV_FILE = "dev-v1.1.json"
 
 EMBEDDING_FILE = "glove.embedding.npy"
 VOCAB_FILE = "vocab.txt"
-
-STANFORD_CORENLP_PORT = "9000"

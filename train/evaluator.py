@@ -37,7 +37,7 @@ class Evaluator:
                 tf.Variable(word_chars_placeholder, trainable=False)
             self.model_builder = ModelBuilder(None, self.options,
                 self.sq_dataset, embedding_var, word_chars_var,
-                compute_gradients=False)
+                compute_gradients=False, sess=self.session)
             self.saver = create_saver()
             maybe_restore_model(self.s3, self.s3_save_key, self.options,
                 self.session, self.checkpoint_file_name, self.saver,

@@ -9,7 +9,7 @@ from model.model_types import MODEL_TYPES
 
 class ModelBuilder:
     def __init__(self, optimizer, options, sq_dataset, embeddings, word_chars,
-            compute_gradients):
+            compute_gradients, sess):
         self.sq_dataset = sq_dataset
         self.optimizer = optimizer
         self.options = options
@@ -19,6 +19,7 @@ class ModelBuilder:
         self.loss = None
         self.embeddings = embeddings
         self.word_chars = word_chars
+        self.sess = sess
         self._setup()
 
     def get_num_towers(self):
@@ -42,7 +43,7 @@ class ModelBuilder:
         print("Creating tower in model")
         tower = MODEL_TYPES[self.options.model_type](self.options,
                 iterators, self.sq_dataset, self.embeddings,
-                self.word_chars, self.cove_cells)
+                self.word_chars, self.cove_cells, self.sess)
         tower.setup()
         print("Tower created")
         self.towers.append(tower)
