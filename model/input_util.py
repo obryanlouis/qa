@@ -5,6 +5,7 @@ import preprocessing.constants as constants
 import tensorflow as tf
 
 from model.cove_lstm import *
+from model.cudnn_gru_wrapper import *
 from model.fusion_net_util import *
 from model.tf_util import *
 
@@ -29,7 +30,8 @@ def _create_word_fusion(options, sq_dataset, ctx_glove, qst_glove):
         alpha_softmax = tf.nn.softmax(alpha, dim=2) # size = [batch_size, M, N]
         return tf.matmul(alpha_softmax, qst_glove) # size = [batch_size, M, d]
 
-def _create_word_similarity(primary_iterator, secondary_iterator, v_wiq_or_wic):
+def _create_word_similarity(primary_iterator, secondary_iterator, v_wiq_or_wic,
+    batch_size):
     """Creates a word similarity tensor, which is used as an input feature.
        Inputs:
          primary_iterator: Either the contexts or questions shaped [batch_size, N, W]
@@ -38,9 +40,9 @@ def _create_word_similarity(primary_iterator, secondary_iterator, v_wiq_or_wic):
        Output:
          A word-similarity vector shaped [batch_size, N, 1]
     """
-    sh_prim = tf.shape(primary_iterator)
-    sh_sec = tf.shape(secondary_iterator)
-    batch_size, N, W = sh_prim[0], sh_prim[1], sh_prim[2]
+    sh_prim = primary_iterator.get_shape()
+    sh_sec = secondary_iterator.get_shape()
+    N, W = sh_prim[1], sh_prim[2]
     M = sh_sec[1]
     prim = tf.reshape(primary_iterator, shape=[batch_size * W, N, 1])
     sec = tf.reshape(secondary_iterator, shape=[batch_size * W, 1, M])
@@ -59,29 +61,33 @@ def _create_char_embedding(sq_dataset, options):
                 options.character_embedding_size],
             dtype=tf.float32)
 
-def _run_char_birnn(scope, embedded_chars_tensor, options, sq_dataset):
+def _run_cudnn_char_birnn(sess, scope, embedded_chars_tensor, options,
+    sq_dataset, is_train):
+    """
+        Inputs:
+            embedded_chars_tensor: Shaped [batch_size, max_(ctx|qst)_length, max_word_length, char_embedding_size]
+        Output:
+            A tensor shaped [batch_size, max_(ctx|qst)_length, 2 * rnn_size]
+    """
     with tf.variable_scope(scope):
-        with tf.variable_scope("forward"):
-            rnn_cell_fw = tf.nn.rnn_cell.GRUCell(options.rnn_size)
-        with tf.variable_scope("backward"):
-            rnn_cell_bw = tf.nn.rnn_cell.GRUCell(options.rnn_size)
+        gru = create_cudnn_gru(options.character_embedding_size,
+            sess, options, "gru", tf.constant(1.0), num_layers=1,
+            bidirectional=True)
         sh = tf.shape(embedded_chars_tensor)
         batch_size, N = sh[0], sh[1]
-        _, final_states = tf.nn.bidirectional_dynamic_rnn(rnn_cell_fw, rnn_cell_bw, 
-                tf.reshape(embedded_chars_tensor, [batch_size * N, sq_dataset.max_word_len, options.character_embedding_size]),
-                dtype=tf.float32)
-        final_state_fw, final_state_bw = final_states # sizes = [batch_size * N, rnn_size]
-        desired_shape = [batch_size, N, options.rnn_size]
-        state_fw = tf.reshape(final_state_fw, desired_shape)
-        state_bw = tf.reshape(final_state_bw, desired_shape)
-        return tf.reshape(
-                 tf.concat([state_fw, state_bw], axis=2)
-             , [batch_size, N, 2 * options.rnn_size])
+        rnn_batch_size = batch_size * N
+        inputs = tf.reshape(embedded_chars_tensor, [rnn_batch_size,
+            sq_dataset.max_word_len, options.character_embedding_size])
+        rnn_outputs = run_cudnn_rnn_and_return_hidden_outputs(
+                inputs, tf.constant(1.0), options, gru, rnn_batch_size,
+                is_train) # size = [batch_size * N,  2, rnn_size]
+        return tf.reshape(rnn_outputs, [batch_size, N, 2 * options.rnn_size])
 
-def _add_char_embedding_inputs(scope, char_embedding, char_data, options,
-        inputs_list, sq_dataset):
-    chars_embedded = tf.nn.embedding_lookup(char_embedding, tf.cast(char_data, dtype=tf.int32))
-    chars_input = _run_char_birnn(scope, chars_embedded, options, sq_dataset)
+def _add_char_embedding_inputs(sess, scope, char_embedding, char_data, options,
+        inputs_list, sq_dataset, is_train):
+    chars_embedded = tf.nn.embedding_lookup(char_embedding, tf.cast(char_data, dtype=tf.int32)) # size = [batch_size, max_(ctx|qst)_length, max_word_length, char_embedding_size]
+    chars_input = _run_cudnn_char_birnn(sess, scope, chars_embedded, options,
+        sq_dataset, is_train)
     inputs_list.append(chars_input)
 
 def _cast_int32(tensor):
@@ -109,9 +115,9 @@ class ModelInputs:
         self.ctx_concat = ctx_concat # The full set of features
         self.qst_concat = qst_concat
 
-def create_model_inputs(words_placeholder, ctx, qst,
+def create_model_inputs(sess, words_placeholder, ctx, qst,
         options, wiq, wic, sq_dataset, ctx_pos, qst_pos, ctx_ner, qst_ner,
-        word_chars, cove_cells):
+        word_chars, cove_cells, is_train, batch_size):
     with tf.variable_scope("model_inputs"):
         ctx_embedded = tf.nn.embedding_lookup(words_placeholder, ctx)
         qst_embedded = tf.nn.embedding_lookup(words_placeholder, qst)
@@ -133,16 +139,18 @@ def create_model_inputs(words_placeholder, ctx, qst,
         if options.use_word_similarity_feature:
             v_wiq = tf.get_variable("v_wiq", shape=[sq_dataset.word_vec_size])
             v_wic = tf.get_variable("v_wic", shape=[sq_dataset.word_vec_size])
-            ctx_inputs_list.append(_create_word_similarity(ctx_embedded, qst_embedded, v_wiq))
-            qst_inputs_list.append(_create_word_similarity(qst_embedded, ctx_embedded, v_wic))
+            ctx_inputs_list.append(_create_word_similarity(ctx_embedded, qst_embedded, v_wiq, batch_size))
+            qst_inputs_list.append(_create_word_similarity(qst_embedded, ctx_embedded, v_wic, batch_size))
         if options.use_character_data:
             char_embedding = _create_char_embedding(sq_dataset, options)
-            ctx_chars = tf.nn.embedding_lookup(word_chars, ctx)
-            qst_chars = tf.nn.embedding_lookup(word_chars, qst)
-            _add_char_embedding_inputs("ctx_embedding", char_embedding,
-                    ctx_chars, options, ctx_inputs_list, sq_dataset)
-            _add_char_embedding_inputs("qst_embedding", char_embedding,
-                    qst_chars, options, qst_inputs_list, sq_dataset)
+            ctx_chars = tf.nn.embedding_lookup(word_chars, ctx) # size = [batch_size, max_ctx_length, max_word_length]
+            qst_chars = tf.nn.embedding_lookup(word_chars, qst) # size = [batch_size, max_qst_length, max_word_length]
+            _add_char_embedding_inputs(sess, "ctx_embedding", char_embedding,
+                    ctx_chars, options, ctx_inputs_list, sq_dataset,
+                    is_train)
+            _add_char_embedding_inputs(sess, "qst_embedding", char_embedding,
+                    qst_chars, options, qst_inputs_list, sq_dataset,
+                    is_train)
         if options.use_pos_tagging_feature:
             pos_embedding = tf.get_variable("pos_embedding", shape=[2**8, options.pos_embedding_size])
             ctx_inputs_list.append(tf.nn.embedding_lookup(pos_embedding, _cast_int32(ctx_pos)))

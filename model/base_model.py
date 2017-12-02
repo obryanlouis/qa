@@ -8,7 +8,7 @@ from model.input_util import *
 
 class BaseModel:
     def __init__(self, options, tf_iterators, sq_dataset, embeddings,
-            word_chars, cove_cells):
+            word_chars, cove_cells, sess):
         self.sq_dataset = sq_dataset
         self.options = options
         self.num_words = self.sq_dataset.embeddings.shape[0]
@@ -26,6 +26,10 @@ class BaseModel:
         self.embeddings = embeddings
         self.word_chars = word_chars
         self.cove_cells = cove_cells
+        self.sess = sess
+
+    def get_is_train_placeholder(self):
+        return self.is_train_placeholder
 
     def get_data_index_iterator(self):
         return self.data_index_iterator
@@ -34,16 +38,19 @@ class BaseModel:
         return self.keep_prob
 
     def setup(self):
-        self.keep_prob = tf.placeholder(tf.float32)
+        self.is_train_placeholder = tf.placeholder(tf.bool, name="is_train")
+        self.keep_prob = tf.placeholder(tf.float32, name="keep_prob")
         self.batch_size = tf.shape(self.ctx_iterator)[0]
-        model_inputs = create_model_inputs(
+        model_inputs = create_model_inputs(self.sess,
                 self.embeddings, self.ctx_iterator,
                 self.qst_iterator,
                 self.options, self.wiq_iterator,
                 self.wic_iterator, self.sq_dataset,
                 self.ctx_pos_iterator, self.qst_pos_iterator,
                 self.ctx_ner_iterator, self.qst_ner_iterator,
-                self.word_chars, self.cove_cells)
+                self.word_chars, self.cove_cells,
+                self.is_train_placeholder,
+                self.batch_size)
         self.ctx_inputs = model_inputs.ctx_concat
         self.qst_inputs = model_inputs.qst_concat
         self.ctx_glove = model_inputs.ctx_glove

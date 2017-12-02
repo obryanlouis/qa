@@ -16,7 +16,8 @@ class Rnet(BaseModel):
         ctx_dropout = tf.nn.dropout(self.ctx_inputs, self.keep_prob)
         qst_dropout = tf.nn.dropout(self.qst_inputs, self.keep_prob)
         passage_outputs, question_outputs = encode_passage_and_question(
-                self.options, ctx_dropout, qst_dropout, self.keep_prob)
+                self.options, ctx_dropout, qst_dropout, self.keep_prob,
+                self.sess, self.batch_size, self.is_train_placeholder)
         # Step 2. Run a bi-lstm over the passage with the question as the
         # attention.
         ctx_attention = run_attention(self.options,
@@ -32,8 +33,9 @@ class Rnet(BaseModel):
                 self.sq_dataset.get_max_ctx_len(), self.keep_prob,
                 self.sq_dataset.get_max_ctx_len(), num_rnn_layers=1)
         # Step 4. Use a bi-lstm over the context again.
-        ctx_attention = run_bidirectional_lstm("ctx_bidirectional",
-            ctx_attention, self.keep_prob, self.options)
+        ctx_attention = run_bidirectional_cudnn_gru("ctx_bidirectional",
+            ctx_attention, self.keep_prob, self.options,
+            self.batch_size, self.sess, self.is_train_placeholder)
         # Step 5. Create the answer output layer using answer-pointer boundary
         # decoding.
         self.loss, self.start_span_probs, self.end_span_probs = \

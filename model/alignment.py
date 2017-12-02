@@ -7,7 +7,8 @@ import tensorflow as tf
 from model.rnn_util import *
 from model.semantic_fusion import *
 
-def run_alignment(options, ctx, qst, ctx_dim, sq_dataset, keep_prob):
+def run_alignment(options, ctx, qst, ctx_dim, sq_dataset, keep_prob,
+        batch_size, sess, is_train):
     with tf.variable_scope("alignment"):
         assert options.num_interactive_alignment_hops > 0
         c = ctx
@@ -16,8 +17,8 @@ def run_alignment(options, ctx, qst, ctx_dim, sq_dataset, keep_prob):
                 c = _interactive_alignment(options, c, qst, ctx_dim, sq_dataset,
                         keep_prob)
                 c = _self_alignment(options, c, ctx_dim, sq_dataset)
-                c = run_bidirectional_lstm("bidirectional_ctx_" + str(z),
-                    c, keep_prob, options)
+                c = run_bidirectional_cudnn_gru("bidirectional_ctx_" + str(z),
+                    c, keep_prob, options, batch_size, sess, is_train)
         return c
 
 def _interactive_alignment(options, ctx, qst, ctx_dim, sq_dataset, keep_prob):

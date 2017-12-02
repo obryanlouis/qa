@@ -53,7 +53,7 @@ class Trainer:
                 learning_rate=self.options.learning_rate)
             self.model_builder = ModelBuilder(self.optimizer, self.options,
                 self.sq_dataset, embedding_var, word_chars_var,
-                compute_gradients=True)
+                compute_gradients=True, sess=self.session)
             print("Applying gradients")
             apply_gradients_start_time = time.time()
             train_op = None
