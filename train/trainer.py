@@ -72,8 +72,7 @@ class Trainer:
             self.saver = create_saver()
             if self.options.clear_logs_before_training:
                 shutil.rmtree(self.options.log_dir, ignore_errors=True)
-            if not os.path.exists(self.options.log_dir):
-                os.makedirs(self.options.log_dir)
+            os.makedirs(self.options.log_dir, exist_ok=True)
             self.train_writer = tf.summary.FileWriter(os.path.join(
                 self.options.log_dir, "train"), graph=tf.get_default_graph())
             self.val_writer = tf.summary.FileWriter(os.path.join(

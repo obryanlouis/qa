@@ -89,13 +89,18 @@ def _eval(session, towers, squad_dataset, options, is_train, limit_samples):
     total_samples_processed = 0
     start_time = time.time()
     while True:
+        if total_samples_processed >= estimated_total_dev_samples \
+            and num_dev_files == 1:
+            break
         if not limit_samples and num_files_processed >= num_dev_files:
             break
         if limit_samples and total_samples_processed >= options.num_evaluation_samples:
             break
         feed_dict = get_eval_feed_dict(squad_dataset, options, towers, is_train=is_train)
+        iter_start = time.time()
         towers_spans_values = session.run(run_ops, feed_dict=feed_dict)
-        total_samples_processed += options.batch_size
+        batch_increment = options.batch_size * max(1, options.num_gpus)
+        total_samples_processed += batch_increment
 
         num_towers = len(towers)
         items_per_tower = int(len(run_ops) / num_towers)
@@ -128,13 +133,15 @@ def _eval(session, towers, squad_dataset, options, is_train, limit_samples):
                 text_predictions.append(dataset.get_sentence(example_index, start, end))
                 acceptable_gnd_truths = dataset.get_sentences_for_all_gnd_truths(example_index)
                 ground_truths.append(acceptable_gnd_truths)
-        squad_dataset.increment_val_samples_processed(options.batch_size)
+        squad_dataset.increment_val_samples_processed(batch_increment)
         if squad_dataset.get_current_dev_file_number() != num_files_processed:
             num_files_processed += 1
         if not limit_samples:
             est_percent_done = min((100 * float(total_samples_processed) / float(estimated_total_dev_samples)), 100)
             est_processing_rate = est_percent_done / (time.time() - start_time)
-            est_time_left = 0 if est_percent_done >= 100.0 else (100 - est_percent_done) / est_processing_rate
+            iter_time = time.time() - iter_start
+            est_time_left = (float(estimated_total_dev_samples
+                - total_samples_processed) / batch_increment) * iter_time
             clear_printed_line()
             print("Estimated percent evaluated: %f (processing files: %d of %d). %s"
                 % (est_percent_done, min(num_files_processed + 1, num_dev_files),

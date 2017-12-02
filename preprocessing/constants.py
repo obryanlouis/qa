@@ -12,10 +12,9 @@ COVE_WEIGHT_NAMES = ['weight_ih_l0', 'weight_hh_l0', 'bias_ih_l0',
     'weight_hh_l1', 'bias_ih_l1', 'bias_hh_l1', 'weight_ih_l1_reverse',
     'weight_hh_l1_reverse', 'bias_ih_l1_reverse', 'bias_hh_l1_reverse']
 
-# Training data is split into multiple batches of files because there is
-# too much data to fit in memory at once. File patterns below index batches
-# by an ordinal. Adjust as necessary.
-MAX_SAMPLES_PER_SPLIT = 5000
+# Training data can be split into multiple batches of files in order to
+# limit the size of data in memory at once. Adjust as necessary.
+MAX_SAMPLES_PER_SPLIT = 100000
 TRAIN_FOLDER_NAME = "train"
 DEV_FOLDER_NAME = "dev"
 CONTEXT_FILE_PATTERN = "context.%d.npy"

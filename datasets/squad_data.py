@@ -122,7 +122,7 @@ class _SquadDataset:
     def setup_with_tf_session(self, sess):
         self.sess = sess
         self.handle = sess.run(self.iterator.string_handle())
-        self.load_next_file()
+        self.load_next_file(increment_file_number=False)
 
     def _load_2d_np_arr_with_possible_padding(self, full_file_name,
             max_second_dim, pad_value):
@@ -140,7 +140,7 @@ class _SquadDataset:
             mode="constant",
             constant_values=(pad_value,))
 
-    def load_next_file(self):
+    def load_next_file(self, increment_file_number):
         max_ctx_len = self.options.max_ctx_length
         max_qst_len = self.options.max_qst_length
         WORD_PAD_ID = self.vocab.PAD_ID
@@ -159,7 +159,8 @@ class _SquadDataset:
         self.text_tokens_dict = load_text_file(
             self.text_tokens_files[self.current_file_number])
 
-        self.current_file_number = (self.current_file_number + 1) % len(self.context_files)
+        if increment_file_number:
+            self.current_file_number = (self.current_file_number + 1) % len(self.context_files)
         self.sess.run(self.iterator.initializer, feed_dict={
             self.context_placeholder: self.ctx,
             self.question_placeholder: self.qst,
@@ -178,7 +179,7 @@ class _SquadDataset:
     def increment_samples_processed(self, num_samples):
         self.samples_processed_in_current_files += num_samples
         if self.samples_processed_in_current_files >= self.num_samples_in_current_files:
-            self.load_next_file()
+            self.load_next_file(increment_file_number=True)
 
 
 # Class that provides Squad data through Tensorflow iterators by cycling through

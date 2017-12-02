@@ -18,9 +18,9 @@ f.DEFINE_string("experiment_name", "test",
 f.DEFINE_string("checkpoint_dir", "checkpoint",
         "Directory to save model weights and metadata.")
 f.DEFINE_float("learning_rate", 1e-3, "Initial learning rate.")
-f.DEFINE_float("min_learning_rate", 1e-6,
+f.DEFINE_float("min_learning_rate", 1e-8,
         "Minimum learning rate, even after decay.")
-f.DEFINE_float("learning_rate_decay", 0.7,
+f.DEFINE_float("learning_rate_decay", 0.8,
         "Learning rate to apply continuously over each epoch.")
 f.DEFINE_string("download_dir", "downloads", "Directory for data downloads.")
 f.DEFINE_string("data_dir", "data",
@@ -32,7 +32,7 @@ f.DEFINE_boolean("visualize_evaluated_results", True,
         "predicted spans to a file when running evaluation.")
 f.DEFINE_string("log_dir", "log", "Directory to log training summaries. " +
         "These summaries can be monitored with tensorboard.")
-f.DEFINE_string("clear_logs_before_training", True,
+f.DEFINE_string("clear_logs_before_training", False,
         "Whether to clear the log directory before starting training.")
 f.DEFINE_integer("log_every", 10, "Frequency to log loss and gradients.")
 f.DEFINE_string("log_loss", True, "Whether to log loss summaries.")
@@ -71,7 +71,7 @@ f.DEFINE_integer("num_evaluation_samples", 200, "Number of samples of the " +
 f.DEFINE_integer("rnn_size", 100, "The dimension of rnn cells.")
 f.DEFINE_integer("num_rnn_layers", 1, "The number of rnn layers to use in " +
         "a single multi-rnn cell.")
-f.DEFINE_float("dropout", 0.1, "The amount of dropout to use. Should be " +
+f.DEFINE_float("dropout", 0.2, "The amount of dropout to use. Should be " +
         "between 0 (no dropout) and 1.0 (100% dropout).")
 f.DEFINE_integer("dataset_buffer_size", 100, "Size of the dataset buffer." +
         "See the Tensorflow Dataset API for details.")
