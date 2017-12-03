@@ -23,25 +23,27 @@ class _EvalResult:
 def evaluate_train(session, towers, squad_dataset, options):
     """Returns dev (exact match, f1)"""
     result = _eval(session, towers, squad_dataset,
-            options, is_train=True, limit_samples=False)
+            options, is_train=True, sample_limit=None)
     return result.em, result.f1
 
-def evaluate_train_partial(session, towers, squad_dataset, options):
+def evaluate_train_partial(session, towers, squad_dataset, options,
+    sample_limit):
     """Returns dev (exact match, f1)"""
     result = _eval(session, towers, squad_dataset,
-            options, is_train=True, limit_samples=True)
+            options, is_train=True, sample_limit=sample_limit)
     return result.em, result.f1
 
-def evaluate_dev_partial(session, towers, squad_dataset, options):
+def evaluate_dev_partial(session, towers, squad_dataset, options,
+    sample_limit):
     """Returns dev (exact match, f1)"""
     result = _eval(session, towers, squad_dataset,
-            options, is_train=False, limit_samples=True)
+            options, is_train=False, sample_limit=sample_limit)
     return result.em, result.f1
 
 def evaluate_dev(session, towers, squad_dataset, options):
     """Returns dev (exact match, f1)"""
     result = _eval(session, towers, squad_dataset,
-            options, is_train=False, limit_samples=False)
+            options, is_train=False, sample_limit=None)
     return result.em, result.f1
 
 def evaluate_dev_and_visualize(session, towers, squad_dataset, options):
@@ -51,7 +53,7 @@ def evaluate_dev_and_visualize(session, towers, squad_dataset, options):
     if not os.path.exists(options.evaluation_dir):
         os.makedirs(options.evaluation_dir)
     result = _eval(session, towers, squad_dataset,
-            options, is_train=False, limit_samples=False)
+            options, is_train=False, sample_limit=None)
     ctx_file = open(os.path.join(options.evaluation_dir, "context.visualization.txt"), mode="w")
     qst_file = open(os.path.join(options.evaluation_dir, "question.visualization.txt"), mode="w")
     gnd_span_file = open(os.path.join(options.evaluation_dir, "ground_truth_spans.visualization.txt"), mode="w")
@@ -70,7 +72,7 @@ def evaluate_dev_and_visualize(session, towers, squad_dataset, options):
         f.close()
     return result.em, result.f1
 
-def _eval(session, towers, squad_dataset, options, is_train, limit_samples):
+def _eval(session, towers, squad_dataset, options, is_train, sample_limit):
     passages = []
     questions = []
     text_predictions = []
@@ -92,9 +94,9 @@ def _eval(session, towers, squad_dataset, options, is_train, limit_samples):
         if total_samples_processed >= estimated_total_dev_samples \
             and num_dev_files == 1:
             break
-        if not limit_samples and num_files_processed >= num_dev_files:
+        if sample_limit is None and num_files_processed >= num_dev_files:
             break
-        if limit_samples and total_samples_processed >= options.num_evaluation_samples:
+        if sample_limit is not None and total_samples_processed >= sample_limit:
             break
         feed_dict = get_eval_feed_dict(squad_dataset, options, towers, is_train=is_train)
         iter_start = time.time()
@@ -136,7 +138,7 @@ def _eval(session, towers, squad_dataset, options, is_train, limit_samples):
         squad_dataset.increment_val_samples_processed(batch_increment)
         if squad_dataset.get_current_dev_file_number() != num_files_processed:
             num_files_processed += 1
-        if not limit_samples:
+        if sample_limit is not None:
             est_percent_done = min((100 * float(total_samples_processed) / float(estimated_total_dev_samples)), 100)
             est_processing_rate = est_percent_done / (time.time() - start_time)
             iter_time = time.time() - iter_start

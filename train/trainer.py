@@ -48,7 +48,8 @@ class Trainer:
                 self.options.learning_rate, trainable=False, dtype=tf.float32)
             learning_rate_placeholder = tf.placeholder(tf.float32)
             assign_learning_rate = tf.assign(learning_rate,
-                    tf.maximum(self.options.min_learning_rate, learning_rate_placeholder))
+                    tf.maximum(self.options.min_learning_rate,
+                        learning_rate_placeholder))
             self.optimizer = tf.train.AdamOptimizer(
                 learning_rate=self.options.learning_rate)
             self.model_builder = ModelBuilder(self.optimizer, self.options,
@@ -79,6 +80,10 @@ class Trainer:
                 self.options.log_dir, "val"), graph=tf.get_default_graph())
             self.em = tf.Variable(initial_value=0, trainable=False, dtype=tf.float32)
             self.f1 = tf.Variable(initial_value=0, trainable=False, dtype=tf.float32)
+            self.highest_f1 = tf.Variable(initial_value=0, trainable=False,
+                dtype=tf.float32)
+            highest_f1_placeholder = tf.placeholder(tf.float32)
+            assign_highest_f1 = tf.assign(self.highest_f1, highest_f1_placeholder)
             em_summary = tf.summary.scalar("exact_match", self.em)
             f1_summary = tf.summary.scalar("f1_score", self.f1)
             for summary in [self.em, self.f1]:
@@ -104,13 +109,16 @@ class Trainer:
             print("Total setup time before starting training: %s"
                   % (time.time() - train_start_time))
             current_iter = int(self.session.run(iteration_num))
+            current_highest_f1 = self.session.run(self.highest_f1)
+            current_learning_rate = self.session.run(learning_rate)
             total_ds_size = self.sq_dataset.estimate_total_train_ds_size()
-            iterations_per_epoch = total_ds_size / \
-                (self.options.batch_size * max(1, self.options.num_gpus))
+            val_ds_size = self.sq_dataset.estimate_total_dev_ds_size()
+            iterations_per_epoch = int(total_ds_size / \
+                (self.options.batch_size * max(1, self.options.num_gpus)))
             total_iter = max(int(self.options.epochs * iterations_per_epoch), 1)
             start_time = time.time()
-            print("Current iteration: %d, Total iterations: %d"
-                  % (current_iter, total_iter))
+            print("Current iteration: %d, Total iterations: %d, Iters/epoch: %d"
+                  % (current_iter, total_iter, iterations_per_epoch))
             i = current_iter - 1
 
             while True:
@@ -130,9 +138,10 @@ class Trainer:
                 remaining_iters = total_iter - i - 1
                 eta = remaining_iters * time_per_iter
                 print("iteration:", str(i) + "/" + str(total_iter),
-                      "percent done:", 100.0 * float(i) / float(total_iter), 
-                      "loss:", loss_value,
-                      "Sec/iter", time_per_iter, 
+                      "highest f1: %.3f" % current_highest_f1,
+                      "percent done: %.3f" % (100.0 * float(i) / float(total_iter)), 
+                      "loss: %.3f" % loss_value,
+                      "Sec/iter: %.3f" % time_per_iter, 
                       "time/epoch", readable_time(time_per_epoch), end="\r")
                 if i % self.options.log_every == 0:
                     if self.options.log_gradients:
@@ -155,18 +164,22 @@ class Trainer:
                     print("[Validation] iteration:",
                           str(i) + "/" + str(total_iter),
                           "loss:", loss_value)
-                if i % self.options.compute_accuracy_every == 0:
+                # Evaluate on the dev set and save the model once per epoch.
+                if i % iterations_per_epoch == 0:
+                    eval_start = time.time()
                     em, f1 = evaluate_train_partial(self.session,
                         self.model_builder.get_towers(), self.sq_dataset,
-                        self.options)
+                        self.options, sample_limit=val_ds_size)
                     print("")
                     print("[Train] F1", f1, "Em", em)
                     val_em, val_f1 = evaluate_dev_partial(self.session,
                         self.model_builder.get_towers(), self.sq_dataset,
-                        self.options)
+                        self.options, sample_limit=val_ds_size)
                     self.sq_dataset.increment_val_samples_processed(
-                        self.options.num_evaluation_samples)
+                        val_ds_size)
                     print("[Valid] F1", val_f1, "Em", val_em)
+                    print("Time to evaluate train/val: %f"
+                          % (time.time() - eval_start))
                     self._perform_summary_assignment(self.em, em)
                     self._perform_summary_assignment(self.f1, f1)
                     if self.options.log_exact_match:
@@ -181,11 +194,19 @@ class Trainer:
                         self.val_writer.add_summary(self.session.run(f1_summary), i)
                     self.train_writer.flush()
                     self.val_writer.flush()
-                if i % self.options.save_every == 0:
-                    self.saver.save(self.session, self.checkpoint_file_name)
-                    maybe_upload_files_to_s3(self.s3, self.s3_save_key, self.options.checkpoint_dir, self.options)
-                    print("Saved model at iteration", i, "with checkpoint path", self.options.checkpoint_dir)
-
-                self.session.run(assign_learning_rate, feed_dict={
-                    learning_rate_placeholder: self.options.learning_rate * 
-                    (self.options.learning_rate_decay ** (float(i) / iterations_per_epoch))})
+                    # If the validation F1 score didn't increase, then cut
+                    # the learning rate.
+                    if current_highest_f1 >= val_f1:
+                        new_learning_rate = current_learning_rate / 2.0
+                        self.session.run(assign_learning_rate, feed_dict={
+                            learning_rate_placeholder: new_learning_rate})
+                        current_learning_rate = new_learning_rate
+                        print("Dropped learning rate to %f because val F1 didn't inrease from %f" % (new_learning_rate, current_highest_f1))
+                    else:
+                        self.session.run(assign_highest_f1, feed_dict={
+                            highest_f1_placeholder: val_f1})
+                        current_highest_f1 = val_f1
+                        print("Achieved new highest F1: %f" % val_f1)
+                        self.saver.save(self.session, self.checkpoint_file_name)
+                        maybe_upload_files_to_s3(self.s3, self.s3_save_key, self.options.checkpoint_dir, self.options)
+                        print("Saved model at iteration", i)

@@ -20,8 +20,6 @@ f.DEFINE_string("checkpoint_dir", "checkpoint",
 f.DEFINE_float("learning_rate", 1e-3, "Initial learning rate.")
 f.DEFINE_float("min_learning_rate", 1e-8,
         "Minimum learning rate, even after decay.")
-f.DEFINE_float("learning_rate_decay", 0.8,
-        "Learning rate to apply continuously over each epoch.")
 f.DEFINE_string("download_dir", "downloads", "Directory for data downloads.")
 f.DEFINE_string("data_dir", "data",
         "Directory with word embeddings, vocab, and training/dev data.")
@@ -41,11 +39,6 @@ f.DEFINE_string("log_exact_match", True, "Whether to log exact match scores.")
 f.DEFINE_string("log_f1_score", True, "Whether to log f1 scores.")
 f.DEFINE_string("log_valid_every", 100, "Frequency (in iterations) to log " +
         "loss & gradients for the validation data set.")
-f.DEFINE_integer("compute_accuracy_every", 200, "Frequency (in iterations) " +
-        "to compute exact matach and f1 scores on the training and " +
-        "validation data sets.")
-f.DEFINE_integer("save_every", 500, "Frequency (in iterations) to save the "
-        "model.")
 f.DEFINE_boolean("use_s3", False,
         "Whether to use AWS S3 storage to save model checkpoints. " +
         "Checkpoints will be saved according to the experiment name and " +
@@ -64,10 +57,6 @@ f.DEFINE_integer("batch_size", 24, "Training batch size. If using GPUs, " +
 f.DEFINE_integer("epochs", 10, "Number of epochs to train." +
         "The training process will keep going after this limit, but will show" +
         "a training progress percent based on this number of epochs.")
-f.DEFINE_integer("num_evaluation_samples", 200, "Number of samples of the " +
-        "datasets to take for partial exact match and f1 score evaluations." +
-        "This is done since it can take a while to evaluate the model on the" +
-        "whole dataset")
 f.DEFINE_integer("rnn_size", 100, "The dimension of rnn cells.")
 f.DEFINE_integer("num_rnn_layers", 1, "The number of rnn layers to use in " +
         "a single multi-rnn cell.")
