@@ -7,10 +7,10 @@ def readable_time(eta):
     if eta < 0:
         return "[DONE]"
     if eta >= 3600:
-        return "(hr) " + str(eta / 3600)
+        return "(hr) %.3f" % (eta / 3600)
     if eta >= 60:
-        return "(min) " + str(eta / 60)
-    return "(sec) " + str(eta)
+        return "(min) %.3f" % (eta / 60)
+    return "(sec) %.3f" % eta
 
 def readable_eta(eta):
     return "ETA" + readable_time(eta)

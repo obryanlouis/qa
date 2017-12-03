@@ -32,7 +32,7 @@ f.DEFINE_string("log_dir", "log", "Directory to log training summaries. " +
         "These summaries can be monitored with tensorboard.")
 f.DEFINE_string("clear_logs_before_training", False,
         "Whether to clear the log directory before starting training.")
-f.DEFINE_integer("log_every", 10, "Frequency to log loss and gradients.")
+f.DEFINE_integer("log_every", 100, "Frequency to log loss and gradients.")
 f.DEFINE_string("log_loss", True, "Whether to log loss summaries.")
 f.DEFINE_string("log_gradients", True, "Whether to log gradient summaries.")
 f.DEFINE_string("log_exact_match", True, "Whether to log exact match scores.")
@@ -54,9 +54,6 @@ f.DEFINE_integer("num_gpus", 2, "Number of GPUs available for training. " +
         "Use 0 for CPU-only training")
 f.DEFINE_integer("batch_size", 24, "Training batch size. If using GPUs, " +
         "then this will be the same for each GPU.")
-f.DEFINE_integer("epochs", 10, "Number of epochs to train." +
-        "The training process will keep going after this limit, but will show" +
-        "a training progress percent based on this number of epochs.")
 f.DEFINE_integer("rnn_size", 100, "The dimension of rnn cells.")
 f.DEFINE_integer("num_rnn_layers", 1, "The number of rnn layers to use in " +
         "a single multi-rnn cell.")

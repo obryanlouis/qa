@@ -6,6 +6,7 @@ import os
 import shutil
 import time
 
+from decimal import Decimal
 from model.model_types import MODEL_TYPES
 from train.evaluation_util import *
 from train.model_builder import ModelBuilder
@@ -78,10 +79,12 @@ class Trainer:
                 self.options.log_dir, "train"), graph=tf.get_default_graph())
             self.val_writer = tf.summary.FileWriter(os.path.join(
                 self.options.log_dir, "val"), graph=tf.get_default_graph())
-            self.em = tf.Variable(initial_value=0, trainable=False, dtype=tf.float32)
-            self.f1 = tf.Variable(initial_value=0, trainable=False, dtype=tf.float32)
-            self.highest_f1 = tf.Variable(initial_value=0, trainable=False,
-                dtype=tf.float32)
+            self.em = tf.Variable(name="em",
+                initial_value=0, trainable=False, dtype=tf.float32)
+            self.f1 = tf.Variable(name="f1",
+                initial_value=0, trainable=False, dtype=tf.float32)
+            self.highest_f1 = tf.Variable(name="highest_f1",
+                initial_value=0, trainable=False, dtype=tf.float32)
             highest_f1_placeholder = tf.placeholder(tf.float32)
             assign_highest_f1 = tf.assign(self.highest_f1, highest_f1_placeholder)
             em_summary = tf.summary.scalar("exact_match", self.em)
@@ -115,10 +118,9 @@ class Trainer:
             val_ds_size = self.sq_dataset.estimate_total_dev_ds_size()
             iterations_per_epoch = int(total_ds_size / \
                 (self.options.batch_size * max(1, self.options.num_gpus)))
-            total_iter = max(int(self.options.epochs * iterations_per_epoch), 1)
             start_time = time.time()
-            print("Current iteration: %d, Total iterations: %d, Iters/epoch: %d"
-                  % (current_iter, total_iter, iterations_per_epoch))
+            print("Current iteration: %d, Iters/epoch: %d"
+                  % (current_iter, iterations_per_epoch))
             i = current_iter - 1
 
             while True:
@@ -135,12 +137,10 @@ class Trainer:
                 iter_end = time.time()
                 time_per_iter = iter_end - iter_start
                 time_per_epoch = time_per_iter * iterations_per_epoch
-                remaining_iters = total_iter - i - 1
-                eta = remaining_iters * time_per_iter
-                print("iteration:", str(i) + "/" + str(total_iter),
-                      "highest f1: %.3f" % current_highest_f1,
-                      "percent done: %.3f" % (100.0 * float(i) / float(total_iter)), 
-                      "loss: %.3f" % loss_value,
+                print("iteration:", str(i),
+                      "highest f1: %.4f" % current_highest_f1,
+                      "learning rate: %.3E" % Decimal(current_learning_rate),
+                      "loss: %.3E" % Decimal(loss_value),
                       "Sec/iter: %.3f" % time_per_iter, 
                       "time/epoch", readable_time(time_per_epoch), end="\r")
                 if i % self.options.log_every == 0:
@@ -161,9 +161,8 @@ class Trainer:
                     if self.options.log_loss:
                         self.val_writer.add_summary(loss_summary_value, i)
                     print("")
-                    print("[Validation] iteration:",
-                          str(i) + "/" + str(total_iter),
-                          "loss:", loss_value)
+                    print("[Validation] iteration:", str(i),
+                          "loss: %.3E" % Decimal(loss_value))
                 # Evaluate on the dev set and save the model once per epoch.
                 if i % iterations_per_epoch == 0:
                     eval_start = time.time()
@@ -201,7 +200,10 @@ class Trainer:
                         self.session.run(assign_learning_rate, feed_dict={
                             learning_rate_placeholder: new_learning_rate})
                         current_learning_rate = new_learning_rate
-                        print("Dropped learning rate to %f because val F1 didn't inrease from %f" % (new_learning_rate, current_highest_f1))
+                        print(("Dropped learning rate to %.3E because val F1 "
+                            + "didn't increase from %.3E")
+                            % (Decimal(new_learning_rate),
+                               Decimal(current_highest_f1)))
                     else:
                         self.session.run(assign_highest_f1, feed_dict={
                             highest_f1_placeholder: val_f1})

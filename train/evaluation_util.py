@@ -138,11 +138,13 @@ def _eval(session, towers, squad_dataset, options, is_train, sample_limit):
         squad_dataset.increment_val_samples_processed(batch_increment)
         if squad_dataset.get_current_dev_file_number() != num_files_processed:
             num_files_processed += 1
-        if sample_limit is not None:
-            est_percent_done = min((100 * float(total_samples_processed) / float(estimated_total_dev_samples)), 100)
+
+            samples = sample_limit if sample_limit is not None \
+                else estimated_total_dev_samples
+            est_percent_done = min((100 * float(total_samples_processed) / float(sample_limit)), 100)
             est_processing_rate = est_percent_done / (time.time() - start_time)
             iter_time = time.time() - iter_start
-            est_time_left = (float(estimated_total_dev_samples
+            est_time_left = (float(sample_limit
                 - total_samples_processed) / batch_increment) * iter_time
             clear_printed_line()
             print("Estimated percent evaluated: %f (processing files: %d of %d). %s"
