@@ -107,7 +107,7 @@ f.DEFINE_float("fusion_matrix_dimension", 250, "Dimension of the diagonal" +
 f.DEFINE_boolean("use_cove_vectors", True, "Whether to use CoVe vectors" +
         "as additional model inputs.")
 f.DEFINE_integer("num_qa_loops", 2, "")
-f.DEFINE_integer("qa_diag_dim", 100, "")
+f.DEFINE_integer("qa_diag_dim", 20, "")
 
 def get_options_from_flags():
     return tf.app.flags.FLAGS
