@@ -15,12 +15,18 @@ from train.print_utils import *
 from train.s3_util import *
 from train.train_util import *
 
+def _get_val(float_val):
+    return Decimal(float_val.item() if (isinstance(float_val, np.ndarray) \
+        or isinstance(float_val, np.float32) \
+        or isinstance(float_val, np.float64)) else float_val)
+
 class Trainer:
     def __init__(self, options):
         self.options = options
         self.summary_assignments = {}
         self.s3_save_key = create_s3_save_key(options)
         self.checkpoint_file_name = create_checkpoint_file_name(options)
+        self.extra_save_vars = []
 
     def _perform_summary_assignment(self, summary, value):
         assignment_dict = self.summary_assignments[summary]
@@ -45,14 +51,14 @@ class Trainer:
             word_chars_var = \
                 tf.Variable(word_chars_placeholder, trainable=False)
 
-            learning_rate = tf.Variable(initial_value=
+            learning_rate = tf.Variable(name="learning_rate", initial_value=
                 self.options.learning_rate, trainable=False, dtype=tf.float32)
             learning_rate_placeholder = tf.placeholder(tf.float32)
             assign_learning_rate = tf.assign(learning_rate,
                     tf.maximum(self.options.min_learning_rate,
                         learning_rate_placeholder))
             self.optimizer = tf.train.AdamOptimizer(
-                learning_rate=self.options.learning_rate)
+                learning_rate=learning_rate)
             self.model_builder = ModelBuilder(self.optimizer, self.options,
                 self.sq_dataset, embedding_var, word_chars_var,
                 compute_gradients=True, sess=self.session)
@@ -71,7 +77,6 @@ class Trainer:
                 dtype=tf.int32)
             incr_iter = tf.assign(iteration_num, iteration_num + 1)
 
-            self.saver = create_saver()
             if self.options.clear_logs_before_training:
                 shutil.rmtree(self.options.log_dir, ignore_errors=True)
             os.makedirs(self.options.log_dir, exist_ok=True)
@@ -85,6 +90,7 @@ class Trainer:
                 initial_value=0, trainable=False, dtype=tf.float32)
             self.highest_f1 = tf.Variable(name="highest_f1",
                 initial_value=0, trainable=False, dtype=tf.float32)
+            self.extra_save_vars.append(self.highest_f1)
             highest_f1_placeholder = tf.placeholder(tf.float32)
             assign_highest_f1 = tf.assign(self.highest_f1, highest_f1_placeholder)
             em_summary = tf.summary.scalar("exact_match", self.em)
@@ -101,6 +107,7 @@ class Trainer:
             print("Time to apply gradients: %s"
                     % (time.time() - apply_gradients_start_time))
 
+            self.saver = create_saver(self.extra_save_vars)
             maybe_restore_model(self.s3, self.s3_save_key, self.options,
                 self.session, self.checkpoint_file_name, self.saver,
                 embedding_placeholder, self.sq_dataset.embeddings,
@@ -119,8 +126,9 @@ class Trainer:
             iterations_per_epoch = int(total_ds_size / \
                 (self.options.batch_size * max(1, self.options.num_gpus)))
             start_time = time.time()
-            print("Current iteration: %d, Iters/epoch: %d"
-                  % (current_iter, iterations_per_epoch))
+            print("Current iteration: %d, Iters/epoch: %d, Current learning rate: %f"
+                  % (current_iter, iterations_per_epoch,
+                      _get_val(current_learning_rate)))
             i = current_iter - 1
 
             while True:
@@ -139,8 +147,8 @@ class Trainer:
                 time_per_epoch = time_per_iter * iterations_per_epoch
                 print("iteration:", str(i),
                       "highest f1: %.4f" % current_highest_f1,
-                      "learning rate: %.3E" % Decimal(current_learning_rate),
-                      "loss: %.3E" % Decimal(loss_value),
+                      "learning rate: %.3E" % _get_val(current_learning_rate),
+                      "loss: %.3E" % _get_val(loss_value),
                       "Sec/iter: %.3f" % time_per_iter, 
                       "time/epoch", readable_time(time_per_epoch), end="\r")
                 if i % self.options.log_every == 0:
@@ -162,7 +170,7 @@ class Trainer:
                         self.val_writer.add_summary(loss_summary_value, i)
                     print("")
                     print("[Validation] iteration:", str(i),
-                          "loss: %.3E" % Decimal(loss_value))
+                          "loss: %.3E" % _get_val(loss_value))
                 # Evaluate on the dev set and save the model once per epoch.
                 if i % iterations_per_epoch == 0:
                     eval_start = time.time()
@@ -202,13 +210,14 @@ class Trainer:
                         current_learning_rate = new_learning_rate
                         print(("Dropped learning rate to %.3E because val F1 "
                             + "didn't increase from %.3E")
-                            % (Decimal(new_learning_rate),
-                               Decimal(current_highest_f1)))
+                            % (_get_val(new_learning_rate),
+                               _get_val(current_highest_f1)))
                     else:
                         self.session.run(assign_highest_f1, feed_dict={
                             highest_f1_placeholder: val_f1})
                         current_highest_f1 = val_f1
                         print("Achieved new highest F1: %f" % val_f1)
                         self.saver.save(self.session, self.checkpoint_file_name)
-                        maybe_upload_files_to_s3(self.s3, self.s3_save_key, self.options.checkpoint_dir, self.options)
+                        maybe_upload_files_to_s3(self.s3, self.s3_save_key,
+                            self.options.checkpoint_dir, self.options)
                         print("Saved model at iteration", i)

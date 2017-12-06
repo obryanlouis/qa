@@ -141,10 +141,10 @@ def _eval(session, towers, squad_dataset, options, is_train, sample_limit):
 
             samples = sample_limit if sample_limit is not None \
                 else estimated_total_dev_samples
-            est_percent_done = min((100 * float(total_samples_processed) / float(sample_limit)), 100)
+            est_percent_done = min((100 * float(total_samples_processed) / float(samples)), 100)
             est_processing_rate = est_percent_done / (time.time() - start_time)
             iter_time = time.time() - iter_start
-            est_time_left = (float(sample_limit
+            est_time_left = (float(samples
                 - total_samples_processed) / batch_increment) * iter_time
             clear_printed_line()
             print("Estimated percent evaluated: %f (processing files: %d of %d). %s"

@@ -23,8 +23,9 @@ def create_session():
         allow_soft_placement=True,
         log_device_placement=False))
 
-def create_saver():
-    return tf.train.Saver(var_list=tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES))
+def create_saver(extra_save_vars=[]):
+    return tf.train.Saver(var_list=tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES)
+        + extra_save_vars)
 
 def maybe_restore_model(s3, s3_save_key, options, session,
         checkpoint_file_name, saver, embeddings_placeholder, embeddings,
