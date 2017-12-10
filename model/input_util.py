@@ -5,7 +5,7 @@ import preprocessing.constants as constants
 import tensorflow as tf
 
 from model.cove_lstm import *
-from model.cudnn_gru_wrapper import *
+from model.cudnn_lstm_wrapper import *
 from model.fusion_net_util import *
 from model.tf_util import *
 
@@ -61,7 +61,7 @@ def _create_char_embedding(sq_dataset, options):
             dtype=tf.float32)
 
 def _run_cudnn_char_birnn(sess, scope, embedded_chars_tensor, options,
-    sq_dataset, is_train):
+    sq_dataset, use_dropout):
     """
         Inputs:
             embedded_chars_tensor: Shaped [batch_size, max_(ctx|qst)_length, max_word_length, char_embedding_size]
@@ -69,24 +69,24 @@ def _run_cudnn_char_birnn(sess, scope, embedded_chars_tensor, options,
             A tensor shaped [batch_size, max_(ctx|qst)_length, 2 * rnn_size]
     """
     with tf.variable_scope(scope):
-        gru = create_cudnn_gru(options.character_embedding_size,
-            sess, options, "gru", tf.constant(1.0), num_layers=1,
+        lstm = create_cudnn_lstm(options.character_embedding_size,
+            sess, options, "lstm", tf.constant(1.0), num_layers=1,
             bidirectional=True)
         sh = tf.shape(embedded_chars_tensor)
         batch_size, N = sh[0], sh[1]
         rnn_batch_size = batch_size * N
         inputs = tf.reshape(embedded_chars_tensor, [rnn_batch_size,
             sq_dataset.max_word_len, options.character_embedding_size])
-        rnn_outputs = run_cudnn_rnn_and_return_hidden_outputs(
-                inputs, tf.constant(1.0), options, gru, rnn_batch_size,
-                is_train) # size = [batch_size * N,  2, rnn_size]
+        rnn_outputs, _ = run_cudnn_lstm_and_return_hidden_outputs(
+                inputs, tf.constant(1.0), options, lstm, rnn_batch_size,
+                use_dropout) # size = [batch_size * N,  2, rnn_size]
         return tf.reshape(rnn_outputs, [batch_size, N, 2 * options.rnn_size])
 
 def _add_char_embedding_inputs(sess, scope, char_embedding, char_data, options,
-        inputs_list, sq_dataset, is_train):
+        inputs_list, sq_dataset, use_dropout):
     chars_embedded = tf.nn.embedding_lookup(char_embedding, tf.cast(char_data, dtype=tf.int32)) # size = [batch_size, max_(ctx|qst)_length, max_word_length, char_embedding_size]
     chars_input = _run_cudnn_char_birnn(sess, scope, chars_embedded, options,
-        sq_dataset, is_train)
+        sq_dataset, use_dropout)
     inputs_list.append(chars_input)
 
 def _cast_int32(tensor):
@@ -116,7 +116,7 @@ class ModelInputs:
 
 def create_model_inputs(sess, words_placeholder, ctx, qst,
         options, wiq, wic, sq_dataset, ctx_pos, qst_pos, ctx_ner, qst_ner,
-        word_chars, cove_cells, is_train, batch_size):
+        word_chars, cove_cells, use_dropout, batch_size):
     with tf.variable_scope("model_inputs"):
         ctx_embedded = tf.nn.embedding_lookup(words_placeholder, ctx)
         qst_embedded = tf.nn.embedding_lookup(words_placeholder, qst)
@@ -146,10 +146,10 @@ def create_model_inputs(sess, words_placeholder, ctx, qst,
             qst_chars = tf.nn.embedding_lookup(word_chars, qst) # size = [batch_size, max_qst_length, max_word_length]
             _add_char_embedding_inputs(sess, "ctx_embedding", char_embedding,
                     ctx_chars, options, ctx_inputs_list, sq_dataset,
-                    is_train)
+                    use_dropout)
             _add_char_embedding_inputs(sess, "qst_embedding", char_embedding,
                     qst_chars, options, qst_inputs_list, sq_dataset,
-                    is_train)
+                    use_dropout)
         if options.use_pos_tagging_feature:
             pos_embedding = tf.get_variable("pos_embedding", shape=[2**8, options.pos_embedding_size])
             ctx_inputs_list.append(tf.nn.embedding_lookup(pos_embedding, _cast_int32(ctx_pos)))

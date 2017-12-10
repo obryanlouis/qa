@@ -5,22 +5,23 @@ import numpy as np
 import tensorflow as tf
 
 def get_eval_feed_dict(squad_data, options, towers, is_train):
-    feed_dict = get_feed_dict(squad_data, options, towers, is_train)
+    feed_dict = get_feed_dict(squad_data, options, towers, is_train=is_train,
+        use_dropout=False)
     for i in range(len(towers)):
         tower = towers[i]
         feed_dict[tower.get_keep_prob_placeholder()] = 1
     return feed_dict
 
-def get_feed_dict(squad_data, options, towers, is_train):
+def get_feed_dict(squad_data, options, towers, is_train, use_dropout):
     if len(towers) < 1:
         raise Exception("There are no models in the list of towers to train")
     examples_per_tower = int(options.batch_size / len(towers))
     feed_dict = {}
     for i in range(len(towers)):
         tower = towers[i]
-        feed_dict[tower.get_keep_prob_placeholder()] = 1 if not is_train \
+        feed_dict[tower.get_keep_prob_placeholder()] = 1 if not use_dropout \
             else 1 - options.dropout
-        feed_dict[tower.get_is_train_placeholder()] = is_train
+        feed_dict[tower.get_use_dropout_placeholder()] = use_dropout
     train_handle = squad_data.get_train_handle()
     dev_handle = squad_data.get_dev_handle()
     tf_handle = squad_data.get_iterator_handle()
@@ -28,10 +29,12 @@ def get_feed_dict(squad_data, options, towers, is_train):
     return feed_dict
 
 def get_train_feed_dict(squad_data, options, towers):
-    return get_feed_dict(squad_data, options, towers, is_train=True)
+    return get_feed_dict(squad_data, options, towers, is_train=True,
+        use_dropout=True)
 
 def get_dev_feed_dict(squad_data, options, towers):
-    return get_feed_dict(squad_data, options, towers, is_train=False)
+    return get_feed_dict(squad_data, options, towers, is_train=False,
+        use_dropout=False)
 
 def average_gradients(tower_grads):
   """Calculate the average gradient for each shared variable across all towers.

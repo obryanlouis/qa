@@ -17,7 +17,7 @@ def run_alignment(options, ctx, qst, ctx_dim, sq_dataset, keep_prob,
                 c = _interactive_alignment(options, c, qst, ctx_dim, sq_dataset,
                         keep_prob)
                 c = _self_alignment(options, c, ctx_dim, sq_dataset)
-                c = run_bidirectional_cudnn_gru("bidirectional_ctx_" + str(z),
+                c = run_bidirectional_cudnn_lstm("bidirectional_ctx_" + str(z),
                     c, keep_prob, options, batch_size, sess, is_train)
         return c
 

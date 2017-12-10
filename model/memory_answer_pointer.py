@@ -32,7 +32,7 @@ def _update_memory(memory, ctx, probs, ctx_dim, batch_size, M, scope):
     return tf.reshape(updated_memory, [batch_size, 1, ctx_dim]) # size = [batch_size, 1, d]
 
 def memory_answer_pointer(options, ctx, qst, ctx_dim, spans, sq_dataset,
-    keep_prob, sess, is_train):
+    keep_prob, sess, use_dropout):
     """Runs a memory-based answer pointer to get start/end span predictions
 
        Input:
@@ -70,7 +70,7 @@ def memory_answer_pointer(options, ctx, qst, ctx_dim, spans, sq_dataset,
             end_span_probs, end_span_logits = _calculate_span_probs(ctx, memory, M, ctx_dim, batch_size, "end_spans_" + str(z))
             if z < options.num_memory_answer_pointer_hops - 1:
                 memory = _update_memory(memory, ctx, end_span_probs, ctx_dim, batch_size, M, "update_end_memory_" + str(z))
-                ctx = run_bidirectional_cudnn_gru("bidirectional_ctx_" + str(z), ctx, keep_prob, options, batch_size, sess, is_train)
+                ctx = run_bidirectional_cudnn_lstm("bidirectional_ctx_" + str(z), ctx, keep_prob, options, batch_size, sess, use_dropout)
         casted_batch_size = tf.cast(batch_size, tf.float32)
         # Since each passage has been truncated to at most max_ctx_len words,
         # the labels need to be constrained to that range.

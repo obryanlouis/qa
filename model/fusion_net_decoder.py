@@ -3,7 +3,7 @@
 
 import tensorflow as tf
 
-from model.cudnn_gru_wrapper import *
+from model.cudnn_lstm_wrapper import *
 from model.tf_util import *
 from model.rnn_util import *
 
@@ -27,7 +27,7 @@ def _attend_to_prob(scope, d, final_ctx, qst_repr, batch_size, max_ctx_length,
         return span_probs, loss
 
 def decode_fusion_net(options, sq_dataset, keep_prob, final_ctx,
-    qst_understanding, batch_size, spans, sess, is_train):
+    qst_understanding, batch_size, spans, sess, use_dropout):
     with tf.variable_scope("fusion_net_decoder"):
         max_ctx_length = sq_dataset.get_max_ctx_len()
         max_qst_length = sq_dataset.get_max_qst_len()
@@ -36,24 +36,25 @@ def decode_fusion_net(options, sq_dataset, keep_prob, final_ctx,
         w_times_qst = multiply_tensors(qst_understanding, w) # size = [batch_size, max_qst_length]
         softmax_w_times_qst = tf.reshape(tf.nn.softmax(w_times_qst, dim=1),
             shape=[batch_size, max_qst_length, 1]) # size = [batch_size, max_qst_length, 1]
-        qst_summary = tf.reshape(tf.matmul(
-            tf.transpose(qst_understanding, perm=[0, 2, 1]),
-            softmax_w_times_qst), shape=[batch_size, d]) # size = [batch_size, d]
+        qst_summary = tf.reduce_sum(qst_understanding * softmax_w_times_qst,
+            axis=1) # size = [batch_size, d]
         start_probs, start_loss = _attend_to_prob("start_probs", d, final_ctx,
             qst_summary, batch_size, max_ctx_length, spans[:,0])
 
-
         weighted_ctx = tf.reshape(
-                tf.matmul(tf.reshape(start_probs,
-                shape=[batch_size, 1, max_ctx_length]), final_ctx)
-            , shape=[batch_size, 1, d]) # size = [batch_size, d]
-        gru = create_cudnn_gru(weighted_ctx.get_shape()[2],
-            sess, options, "gru", keep_prob,
+                tf.reduce_sum(
+                    tf.reshape(start_probs, shape=[batch_size, max_ctx_length,
+                    1]) * final_ctx,
+                axis=1)
+            , shape=[batch_size, 1, d])
+        lstm = create_cudnn_lstm(d,
+            sess, options, "lstm", keep_prob,
             bidirectional=False, layer_size=d, num_layers=1)
         qst_summary_reshaped = tf.reshape(qst_summary, [1, batch_size, d])
-        vq = run_cudnn_rnn_and_return_outputs(weighted_ctx, keep_prob,
-            options, gru, batch_size, is_train,
-            initial_state=qst_summary_reshaped)
+        vq = run_cudnn_lstm_and_return_outputs(weighted_ctx, keep_prob,
+            options, lstm, batch_size, use_dropout,
+            initial_state_h=qst_summary_reshaped,
+            initial_state_c=qst_summary_reshaped)
 
         end_probs, end_loss = _attend_to_prob("end_loss", d, final_ctx,
             vq, batch_size, max_ctx_length, spans[:,1])

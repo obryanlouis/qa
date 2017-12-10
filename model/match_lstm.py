@@ -18,7 +18,7 @@ class MatchLstm(BaseModel):
         qst_dropout = tf.nn.dropout(self.qst_inputs, self.keep_prob)
         passage_outputs, question_outputs = encode_passage_and_question(
                 self.options, ctx_dropout, qst_dropout, self.keep_prob,
-                self.sess, self.batch_size, self.is_train_placeholder)
+                self.sess, self.batch_size, self.use_dropout_placeholder)
         # Step 2. Run a bi-lstm over the passage with the question as the
         # attention.
         ctx_attention = run_attention(self.options,

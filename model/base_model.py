@@ -28,8 +28,8 @@ class BaseModel:
         self.cove_cells = cove_cells
         self.sess = sess
 
-    def get_is_train_placeholder(self):
-        return self.is_train_placeholder
+    def get_use_dropout_placeholder(self):
+        return self.use_dropout_placeholder
 
     def get_data_index_iterator(self):
         return self.data_index_iterator
@@ -38,7 +38,7 @@ class BaseModel:
         return self.keep_prob
 
     def setup(self):
-        self.is_train_placeholder = tf.placeholder(tf.bool, name="is_train")
+        self.use_dropout_placeholder = tf.placeholder(tf.bool, name="use_dropout")
         self.keep_prob = tf.placeholder(tf.float32, name="keep_prob")
         self.batch_size = tf.shape(self.ctx_iterator)[0]
         model_inputs = create_model_inputs(self.sess,
@@ -49,7 +49,7 @@ class BaseModel:
                 self.ctx_pos_iterator, self.qst_pos_iterator,
                 self.ctx_ner_iterator, self.qst_ner_iterator,
                 self.word_chars, self.cove_cells,
-                self.is_train_placeholder,
+                self.use_dropout_placeholder,
                 self.batch_size)
         self.ctx_inputs = model_inputs.ctx_concat
         self.qst_inputs = model_inputs.qst_concat

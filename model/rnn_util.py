@@ -3,7 +3,7 @@
 
 import tensorflow as tf
 
-from model.cudnn_gru_wrapper import *
+from model.cudnn_lstm_wrapper import *
 from model.tf_util import *
 
 def get_question_attention(options, question_rnn_outputs, reduce_size):
@@ -56,18 +56,19 @@ def create_multi_rnn_cell(options, scope, keep_prob, num_rnn_layers=None, layer_
                 cells.append(cell)
         return tf.nn.rnn_cell.MultiRNNCell(cells)
 
-def run_bidirectional_cudnn_gru(scope, inputs, keep_prob, options, batch_size,
-        sess, is_train):
+def run_bidirectional_cudnn_lstm(scope, inputs, keep_prob, options, batch_size,
+        sess, use_dropout, num_layers=None):
     '''
         Input:
             inputs: A tensor of size [batch_size, seq_len, input_size]
         Output:
             A tensor of size [batch_size, seq_len, 2 * rnn_size]
     '''
-    gru = create_cudnn_gru(inputs.get_shape()[2],
-            sess, options, scope, keep_prob, bidirectional=True)
-    return run_cudnn_rnn_and_return_outputs(inputs, keep_prob, options,
-        gru, batch_size, is_train)
+    lstm = create_cudnn_lstm(inputs.get_shape()[2],
+            sess, options, scope, keep_prob, bidirectional=True,
+            num_layers=num_layers)
+    return run_cudnn_lstm_and_return_outputs(inputs, keep_prob, options,
+        lstm, batch_size, use_dropout)
 
 def _get_or_create_attention_variables(options, attention_input, input_dim,
         attention_dim, scope, attention_length,
