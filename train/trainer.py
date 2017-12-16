@@ -204,7 +204,8 @@ class Trainer:
                     # If the validation F1 score didn't increase, then cut
                     # the learning rate.
                     if current_highest_f1 >= val_f1:
-                        new_learning_rate = current_learning_rate / 2.0
+                        new_learning_rate = current_learning_rate \
+                            * self.options.bad_iteration_learning_decay
                         self.session.run(assign_learning_rate, feed_dict={
                             learning_rate_placeholder: new_learning_rate})
                         current_learning_rate = new_learning_rate

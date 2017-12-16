@@ -22,11 +22,10 @@ def encode_low_level_and_high_level_representations(sess, scope, options, inputs
             keep_prob)
         low_level_outputs = run_cudnn_lstm_and_return_outputs(inputs,
             keep_prob, options, lstm, batch_size, is_train)
-        lstm = create_cudnn_lstm(inputs.get_shape()[2], sess, options, "high",
+        lstm = create_cudnn_lstm(2 * options.rnn_size, sess, options, "high",
             keep_prob)
         high_level_outputs = run_cudnn_lstm_and_return_outputs(low_level_outputs,
             keep_prob, options, lstm, batch_size, is_train)
-
         return low_level_outputs, high_level_outputs
 
 def encode_passage_and_question(options, passage, question, keep_prob,

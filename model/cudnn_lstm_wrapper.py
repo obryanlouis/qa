@@ -7,6 +7,7 @@ although this implementation adds it to the input.
 
 import tensorflow as tf
 
+from model.dropout_util import *
 
 class CudnnLstmWrapper:
     def __init__(self, train_lstm, eval_lstm, train_lstm_buffer, eval_lstm_buffer,
@@ -69,7 +70,7 @@ def run_cudnn_lstm(inputs, keep_prob, options, lstm_wrapper, batch_size,
         initial_state_h = tf.zeros(initial_state_shape)
         initial_state_c = tf.zeros(initial_state_shape)
     transposed_inputs = tf.transpose(inputs, perm=[1, 0, 2])
-    dropout_inputs = tf.nn.dropout(transposed_inputs, keep_prob=keep_prob)
+    dropout_inputs = sequence_dropout(transposed_inputs, keep_prob=keep_prob)
     train_output, train_output_h, train_output_c = \
         lstm_wrapper.train_lstm(dropout_inputs,
             initial_state_h, initial_state_c, lstm_wrapper.train_lstm_buffer,

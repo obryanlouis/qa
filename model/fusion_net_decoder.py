@@ -35,18 +35,16 @@ def decode_fusion_net(options, sq_dataset, keep_prob, final_ctx,
         w = tf.get_variable("w", shape=[d], dtype=tf.float32)
         w_times_qst = multiply_tensors(qst_understanding, w) # size = [batch_size, max_qst_length]
         softmax_w_times_qst = tf.reshape(tf.nn.softmax(w_times_qst, dim=1),
-            shape=[batch_size, max_qst_length, 1]) # size = [batch_size, max_qst_length, 1]
-        qst_summary = tf.reduce_sum(qst_understanding * softmax_w_times_qst,
-            axis=1) # size = [batch_size, d]
+            shape=[batch_size, 1, max_qst_length]) # size = [batch_size, max_qst_length, 1]
+        qst_summary = tf.reshape(
+                tf.matmul(softmax_w_times_qst, qst_understanding)
+            , [batch_size, d]) # size = [batch_size, d]
         start_probs, start_loss = _attend_to_prob("start_probs", d, final_ctx,
             qst_summary, batch_size, max_ctx_length, spans[:,0])
 
-        weighted_ctx = tf.reshape(
-                tf.reduce_sum(
-                    tf.reshape(start_probs, shape=[batch_size, max_ctx_length,
-                    1]) * final_ctx,
-                axis=1)
-            , shape=[batch_size, 1, d])
+        weighted_ctx = tf.matmul(tf.reshape(start_probs,
+                [batch_size, 1, max_ctx_length]),
+            final_ctx) # size = [batch_size, 1, d]
         lstm = create_cudnn_lstm(d,
             sess, options, "lstm", keep_prob,
             bidirectional=False, layer_size=d, num_layers=1)

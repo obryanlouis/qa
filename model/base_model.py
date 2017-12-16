@@ -55,6 +55,8 @@ class BaseModel:
         self.qst_inputs = model_inputs.qst_concat
         self.ctx_glove = model_inputs.ctx_glove
         self.qst_glove = model_inputs.qst_glove
+        self.ctx_cove = model_inputs.ctx_cove
+        self.qst_cove = model_inputs.qst_cove
 
     def get_qst(self):
         return self.qst_iterator

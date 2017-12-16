@@ -108,9 +108,12 @@ def _get_cove_vectors(options, ctx_glove, qst_glove, cove_cells):
     return ctx_outputs, qst_outputs
 
 class ModelInputs:
-    def __init__(self, ctx_glove, qst_glove, ctx_concat, qst_concat):
-        self.ctx_glove = ctx_glove # Just the GloVE vectors
+    def __init__(self, ctx_glove, qst_glove, ctx_cove, qst_cove, ctx_concat,
+        qst_concat):
+        self.ctx_glove = ctx_glove # The GloVE vectors
         self.qst_glove = qst_glove
+        self.ctx_cove = ctx_cove # The Cove vectors
+        self.qst_cove = qst_cove
         self.ctx_concat = ctx_concat # The full set of features
         self.qst_concat = qst_concat
 
@@ -122,6 +125,7 @@ def create_model_inputs(sess, words_placeholder, ctx, qst,
         qst_embedded = tf.nn.embedding_lookup(words_placeholder, qst)
         ctx_inputs_list = [ctx_embedded]
         qst_inputs_list = [qst_embedded]
+        ctx_cove, qst_cove = None, None
         if options.use_cove_vectors:
             ctx_cove, qst_cove = _get_cove_vectors(options, ctx_embedded,
                 qst_embedded, cove_cells)
@@ -159,9 +163,9 @@ def create_model_inputs(sess, words_placeholder, ctx, qst,
             ctx_inputs_list.append(tf.nn.embedding_lookup(ner_embedding, _cast_int32(ctx_ner)))
             qst_inputs_list.append(tf.nn.embedding_lookup(ner_embedding, _cast_int32(qst_ner)))
         if len(ctx_inputs_list) == 1:
-            return ModelInputs(ctx_embedded, qst_embedded, ctx_embedded,
-                qst_embedded)
+            return ModelInputs(ctx_embedded, qst_embedded, ctx_cove, qst_cove,
+                ctx_embedded, qst_embedded)
         else:
-            return ModelInputs(ctx_embedded, qst_embedded,
+            return ModelInputs(ctx_embedded, qst_embedded, ctx_cove, qst_cove,
                 tf.concat(ctx_inputs_list, axis=-1),
                 tf.concat(qst_inputs_list, axis=-1))

@@ -6,6 +6,7 @@ import tensorflow as tf
 
 from model.alignment import *
 from model.base_model import BaseModel
+from model.dropout_util import *
 from model.encoding_util import *
 from model.memory_answer_pointer import *
 from model.rnn_util import *
@@ -15,8 +16,8 @@ class MnemonicReader(BaseModel):
         super(MnemonicReader, self).setup()
         ctx_dim = 2 * self.options.rnn_size
         # Step 1. Encode the passage and question.
-        ctx_dropout = tf.nn.dropout(self.ctx_inputs, self.keep_prob)
-        qst_dropout = tf.nn.dropout(self.qst_inputs, self.keep_prob)
+        ctx_dropout = sequence_dropout(self.ctx_inputs, self.keep_prob)
+        qst_dropout = sequence_dropout(self.qst_inputs, self.keep_prob)
         passage_outputs, question_outputs = encode_passage_and_question(
                 self.options, ctx_dropout, qst_dropout, self.keep_prob,
                 self.sess, self.batch_size, self.use_dropout_placeholder)

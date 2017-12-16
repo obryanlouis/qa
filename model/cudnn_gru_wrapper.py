@@ -9,6 +9,8 @@ although this implementation adds it to the input.
 
 import tensorflow as tf
 
+from model.dropout_util import *
+
 
 class CudnnGruWrapper:
     def __init__(self, train_gru, eval_gru, train_gru_buffer, eval_gru_buffer,
@@ -77,7 +79,7 @@ def run_cudnn_gru(inputs, keep_prob, options, gru_wrapper, batch_size,
               "expected shape:", initial_state_shape)
     assert initial_state_shape_expected
     transposed_inputs = tf.transpose(inputs, perm=[1, 0, 2])
-    dropout_inputs = tf.nn.dropout(transposed_inputs, keep_prob=keep_prob)
+    dropout_inputs = sequence_dropout(transposed_inputs, keep_prob=keep_prob)
     train_output, train_output_h = gru_wrapper.train_gru(dropout_inputs,
         initial_state, gru_wrapper.train_gru_buffer, is_training=True)
     assign_eval_buffer = tf.assign(gru_wrapper.eval_gru_buffer,
