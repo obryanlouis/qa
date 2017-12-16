@@ -20,7 +20,7 @@ def conductor_net_self_attention(options, outer_fusion, keep_prob):
                 B_inputs = [B]
                 if B_last is not None: # I assume.
                     B_inputs.extend([B_last, B_last * B])
-                B_in = tf.concat(B_in)
+                B_in = tf.concat(B_inputs, axis=-1)
 
                 B_in_dim = B_in.get_shape()[-1]
                 Wb = tf.get_variable("Wb", shape=[B_in_dim, h_dim], dtype=tf.float32)

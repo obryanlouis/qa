@@ -65,12 +65,18 @@ def memory_answer_pointer(options, ctx, qst, ctx_dim, spans, sq_dataset,
         end_span_logits = None # size = [batch_size, M]
         assert options.num_memory_answer_pointer_hops > 0
         for z in range(options.num_memory_answer_pointer_hops):
-            start_span_probs, start_span_logits = _calculate_span_probs(ctx, memory, M, ctx_dim, batch_size, "start_spans_" + str(z))
-            memory = _update_memory(memory, ctx, start_span_probs, ctx_dim, batch_size, M, "update_start_memory_" + str(z))
-            end_span_probs, end_span_logits = _calculate_span_probs(ctx, memory, M, ctx_dim, batch_size, "end_spans_" + str(z))
+            start_span_probs, start_span_logits = _calculate_span_probs(ctx,
+                memory, M, ctx_dim, batch_size, "start_spans_" + str(z))
+            memory = _update_memory(memory, ctx, start_span_probs, ctx_dim,
+                batch_size, M, "update_start_memory_" + str(z))
+            end_span_probs, end_span_logits = _calculate_span_probs(ctx,
+                memory, M, ctx_dim, batch_size, "end_spans_" + str(z))
             if z < options.num_memory_answer_pointer_hops - 1:
-                memory = _update_memory(memory, ctx, end_span_probs, ctx_dim, batch_size, M, "update_end_memory_" + str(z))
-                ctx = run_bidirectional_cudnn_lstm("bidirectional_ctx_" + str(z), ctx, keep_prob, options, batch_size, sess, use_dropout)
+                memory = _update_memory(memory, ctx, end_span_probs, ctx_dim,
+                    batch_size, M, "update_end_memory_" + str(z))
+                ctx = run_bidirectional_cudnn_lstm(
+                    "bidirectional_ctx_" + str(z), ctx, keep_prob, options,
+                    batch_size, sess, use_dropout)
         casted_batch_size = tf.cast(batch_size, tf.float32)
         # Since each passage has been truncated to at most max_ctx_len words,
         # the labels need to be constrained to that range.

@@ -3,6 +3,7 @@
 
 import tensorflow as tf
 
+from model.dropout_util import *
 from model.tf_util import *
 
 
@@ -17,7 +18,7 @@ def conductor_net_outer_fusion(options, encoded_passsage, keep_prob):
                 Wz = tf.get_variable("Wz", shape=[C_dim, C_dim], dtype=tf.float32)
                 bz = tf.get_variable("bz", shape=[C_dim], dtype=tf.float32)
 
-                C = tf.nn.dropout(C, keep_prob) # TODO: use sequence dropout.
+                C = sequence_dropout(C, keep_prob)
                 C_tilde = tf.nn.relu(multiply_tensors(C, Wc) + bc) # size = size(C)
                 z = tf.nn.sigmoid(multiply_tensors(C, Wz) + bz) # size = size(C)
                 C = (1 - z) * C + z * C_tilde

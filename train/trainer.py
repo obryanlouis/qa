@@ -130,6 +130,7 @@ class Trainer:
                   % (current_iter, iterations_per_epoch,
                       _get_val(current_learning_rate)))
             i = current_iter - 1
+            num_bad_checkpoints = 0
 
             while True:
                 i += 1
@@ -204,15 +205,22 @@ class Trainer:
                     # If the validation F1 score didn't increase, then cut
                     # the learning rate.
                     if current_highest_f1 >= val_f1:
-                        new_learning_rate = current_learning_rate \
-                            * self.options.bad_iteration_learning_decay
-                        self.session.run(assign_learning_rate, feed_dict={
-                            learning_rate_placeholder: new_learning_rate})
-                        current_learning_rate = new_learning_rate
-                        print(("Dropped learning rate to %.3E because val F1 "
-                            + "didn't increase from %.3E")
-                            % (_get_val(new_learning_rate),
-                               _get_val(current_highest_f1)))
+                        if num_bad_checkpoints \
+                            < self.options.bad_checkpoints_tolerance:
+                            num_bad_checkpoints += 1
+                            print("Hit bad checkpoint. num_bad_checkpoints: %d"
+                                % num_bad_checkpoints)
+                        else:
+                            new_learning_rate = current_learning_rate \
+                                * self.options.bad_iteration_learning_decay
+                            self.session.run(assign_learning_rate, feed_dict={
+                                learning_rate_placeholder: new_learning_rate})
+                            current_learning_rate = new_learning_rate
+                            print(("Dropped learning rate to %.3E because val F1 "
+                                + "didn't increase from %.3E")
+                                % (_get_val(new_learning_rate),
+                                   _get_val(current_highest_f1)))
+                            num_bad_checkpoints = 0
                     else:
                         self.session.run(assign_highest_f1, feed_dict={
                             highest_f1_placeholder: val_f1})
@@ -222,3 +230,4 @@ class Trainer:
                         maybe_upload_files_to_s3(self.s3, self.s3_save_key,
                             self.options.checkpoint_dir, self.options)
                         print("Saved model at iteration", i)
+                        num_bad_checkpoints = 0
