@@ -46,6 +46,9 @@ Requirements
 -------------
 * [Python 3](https://www.python.org/downloads/)
 * [spaCy](https://spacy.io/) and the "en" model
+* [Cove vectors](https://github.com/salesforce/cove) - You can skip this part
+  but will probably need to manually remove any cove references in the setup.
+  This also requires [pytorch](http://pytorch.org/).
 * Tensorflow >= 1.3
 
 Using AWS S3

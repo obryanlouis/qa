@@ -94,6 +94,12 @@ f.DEFINE_boolean("use_cove_vectors", True, "Whether to use CoVe vectors" +
         "as additional model inputs.")
 f.DEFINE_integer("num_qa_loops", 2, "")
 f.DEFINE_integer("qa_diag_dim", 20, "")
+f.DEFINE_integer("num_conductor_net_encoder_layers", 2, "Number of encoder" +
+        "layers to use for the conductor net model.")
+f.DEFINE_integer("num_conductor_net_outer_fusion_layers", 2, "Number of" +
+        "outer fusion layers to use for the conductor net model.")
+f.DEFINE_integer("num_conductor_net_self_attention_layers", 2, "Number of" +
+        "self attention layers to use for the conductor net model.")
 
 def get_options_from_flags():
     return tf.app.flags.FLAGS
