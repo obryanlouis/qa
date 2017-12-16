@@ -28,10 +28,10 @@ def encode_conductor_net(ctx, qst, keep_prob, use_dropout, batch_size,
         hp, uq = encode_passage_and_question(options, ctx, qst, keep_prob,
             sess, batch_size, use_dropout) # size(hp) = [batch_size, max_ctx_length, 2 * rnn_size], size(uq) = size(vq)
         ht = hp
-        vq_transpose = tf.transpose(vq, perm=[0, 2, 1])
+        uq_transpose = tf.transpose(uq, perm=[0, 2, 1])
         question_passage_layers = []
         for z in range(options.num_conductor_net_encoder_layers):
-            M = tf.matmul(ht, vq_transpose) # size = [batch_size, max_ctx_length, max_qst_length]
+            M = tf.matmul(ht, uq_transpose) # size = [batch_size, max_ctx_length, max_qst_length]
             A = tf.nn.softmax(M, dim=2) # size(A) = size(M)
             ht = tf.matmul(A, vq) # size = [batch_size, max_ctx_length, 2 * rnn_size]
             question_passage_layers.append(ht)
