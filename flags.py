@@ -97,6 +97,12 @@ f.DEFINE_integer("qa_diag_dim", 20, "")
 f.DEFINE_float("bad_iteration_learning_decay", 0.50,
         "After hitting an iteration where the F1 score drops, the learning" +
         "rate is multiplied by this constant.")
+f.DEFINE_integer("num_conductor_net_encoder_layers", 2, "Number of encoder" +
+        "layers to use for the conductor net model.")
+f.DEFINE_integer("num_conductor_net_outer_fusion_layers", 2, "Number of" +
+        "outer fusion layers to use for the conductor net model.")
+f.DEFINE_integer("num_conductor_net_self_attention_layers", 2, "Number of" +
+        "self attention layers to use for the conductor net model.")
 
 def get_options_from_flags():
     return tf.app.flags.FLAGS
