@@ -22,15 +22,16 @@ def get_question_attention(options, question_rnn_outputs, reduce_size):
         Q = sh[1]
 
         W = 2 * options.rnn_size
-        W_question = tf.get_variable("W", dtype=tf.float32, shape=[W, options.rnn_size])
-        W_param = tf.get_variable("W_param", dtype=tf.float32, shape=[options.rnn_size, options.rnn_size])
-        V_param = tf.get_variable("V_param", dtype=tf.float32, shape=[options.rnn_size, 1])
+        W_question = tf.get_variable("W", dtype=tf.float32,
+            shape=[W, options.rnn_size])
+        V_param = tf.get_variable("V_param", dtype=tf.float32,
+            shape=[options.rnn_size])
         v = tf.get_variable("v", dtype=tf.float32, shape=[options.rnn_size, 1])
 
         s = multiply_tensors(
                     multiply_tensors(question_rnn_outputs,
                               W_question) # size = [batch_size, Q, rnn_size]
-                    + tf.squeeze(tf.matmul(W_param, V_param)) # size = [rnn_size]
+                    + V_param
                     , v) # size = [batch_size, Q, 1]
         a = tf.nn.softmax(s, dim=1) # size = [batch_size, Q, 1]
         reduced_sum = tf.reduce_sum(
@@ -57,7 +58,7 @@ def create_multi_rnn_cell(options, scope, keep_prob, num_rnn_layers=None, layer_
         return tf.nn.rnn_cell.MultiRNNCell(cells)
 
 def run_bidirectional_cudnn_lstm(scope, inputs, keep_prob, options, batch_size,
-        sess, use_dropout, num_layers=None):
+        sess, use_dropout, num_layers=None, layer_size=None):
     '''
         Input:
             inputs: A tensor of size [batch_size, seq_len, input_size]
@@ -66,7 +67,7 @@ def run_bidirectional_cudnn_lstm(scope, inputs, keep_prob, options, batch_size,
     '''
     lstm = create_cudnn_lstm(inputs.get_shape()[2],
             sess, options, scope, keep_prob, bidirectional=True,
-            num_layers=num_layers)
+            num_layers=num_layers, layer_size=layer_size)
     return run_cudnn_lstm_and_return_outputs(inputs, keep_prob, options,
         lstm, batch_size, use_dropout)
 

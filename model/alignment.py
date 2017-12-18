@@ -7,63 +7,48 @@ import tensorflow as tf
 from model.rnn_util import *
 from model.semantic_fusion import *
 
-def run_alignment(options, ctx, qst, ctx_dim, sq_dataset, keep_prob,
-        batch_size, sess, is_train):
+def run_alignment(options, ctx, qst, ctx_dim, keep_prob, batch_size, sess,
+    is_train):
     with tf.variable_scope("alignment"):
         assert options.num_interactive_alignment_hops > 0
         c = ctx
         for z in range(options.num_interactive_alignment_hops):
             with tf.variable_scope("hop_" + str(z)):
-                c = _interactive_alignment(options, c, qst, ctx_dim, sq_dataset,
-                        keep_prob)
-                c = _self_alignment(options, c, ctx_dim, sq_dataset)
-                c = run_bidirectional_cudnn_lstm("bidirectional_ctx_" + str(z),
+                c = align_tensors("question_passage_alignment",
+                    options, c, qst, qst, batch_size)
+                c = align_tensors("self_alignment", options, c, c, c, batch_size)
+                c = run_bidirectional_cudnn_lstm("bidirectional_ctx",
                     c, keep_prob, options, batch_size, sess, is_train)
         return c
 
-def _interactive_alignment(options, ctx, qst, ctx_dim, sq_dataset, keep_prob):
-    """Runs interactive alignment on the passage and question.
+def align_tensors(scope, options, primary_tensor, secondary_tensor, apply_tensor,
+    batch_size):
+    """Runs alignment. Softmax probabilities are computed using the
+       primary and secondary tensors, and they are applied to the third
+       tensor.
 
        Input:
-         ctx: The passage of shape [batch_size, M, d]
-         qst: The question of shape [batch_size, N, d]
-         ctx_dim: d, from above
+         primary_tensor: A tensor of shape [batch_size, M, d]
+         secondary_tensor: A tensor of shape [batch_size, N, d]
+         apply_tensor: A tensor of shape [batch_size, N, d]
 
        Output:
-         A question-aware representation of shape [batch_size, M, d]
+         An output tensor of shape [batch_size, M, d]
     """
-    with tf.variable_scope("interactive_alignment"):
-        coattention_matrix = tf.matmul(qst, tf.transpose(ctx, perm=[0, 2, 1])) # size = [batch_size, N, M]
-        softmax = tf.nn.softmax(coattention_matrix, dim=1) # size = [batch_size, N, M]
-        q_attention = tf.matmul(
-            tf.transpose(softmax, perm=[0, 2, 1]) # size = [batch_size, M, N]
-            , qst) # size = [batch_size, M, d]
-        c_times_q_attention = ctx * q_attention # size = [batch_size, M, d]
-        c_minus_q_attention = ctx - q_attention # size = [batch_size, M, d]
-        return semantic_fusion(ctx, ctx_dim,
-            [q_attention, c_times_q_attention, c_minus_q_attention], "interactive_alignment_semantic_fusion") # size = [batch_size, M, d]
-
-def _self_alignment(options, ctx, ctx_dim, sq_dataset):
-    """Runs self alignment on the passage.
-
-       Input:
-         ctx: The (question-aware) passage of shape [batch_size, M, d]
-         ctx_dim: d, from above
-
-       Output:
-         A self-aligned representation of shape [batch_size, M, d]
-    """
-    with tf.variable_scope("self_alignment"):
-        sh = tf.shape(ctx)
-        batch_size, M = sh[0], sh[1]
-        coattention_matrix = tf.matmul(ctx, tf.transpose(ctx, perm=[0, 2, 1])) # size = [batch_size, M, M]
-        eye = tf.eye(M, batch_shape=[batch_size]) # size = [batch_size, M, M]
-        ones = tf.fill([batch_size, M, M], 1.0) # size = [batch_size, M, M]
-        mult = ones - eye # size = [batch_size, M, M]
-        B = coattention_matrix * mult # size = [batch_size, M, M]
-        softmax = tf.nn.softmax(B, dim=2) # size = [batch_size, M, M]
-        attention = tf.matmul(softmax, ctx) # size = [batch_size, M, d]
-        ctx_times_attention = ctx * attention # size = [batch_size, M, d]
-        ctx_minus_attention = ctx - attention # size = [batch_size, M, d]
-        return semantic_fusion(ctx, ctx_dim, [
-            attention, ctx_times_attention, ctx_minus_attention], "self_aligned_semantic_fusion") # size = [batch_size, M, d]
+    with tf.variable_scope(scope):
+        coattention_matrix = tf.matmul(primary_tensor, tf.transpose(
+            secondary_tensor, perm=[0, 2, 1])) # size = [batch_size, M, N]
+        if primary_tensor == secondary_tensor:
+            sh = tf.shape(primary_tensor)
+            M = sh[1]
+            eye = tf.eye(M, batch_shape=[batch_size]) # size = [batch_size, M, M]
+            ones = tf.fill([batch_size, M, M], 1.0) # size = [batch_size, M, M]
+            mult = ones - eye # size = [batch_size, M, M]
+            coattention_matrix *= mult # size = [batch_size, M, M]
+        softmax = tf.nn.softmax(coattention_matrix, dim=-1) # size = [batch_size, M, N]
+        attention = tf.matmul(softmax, apply_tensor) # size = [batch_size, M, d]
+        apply_tensor_times_attention = primary_tensor * attention # size = [batch_size, M, d]
+        apply_tensor_minus_attention = primary_tensor - attention # size = [batch_size, M, d]
+        return semantic_fusion(primary_tensor, primary_tensor.get_shape()[-1].value,
+            [attention, apply_tensor_times_attention, apply_tensor_minus_attention],
+            "semantic_fusion") # size = [batch_size, M, d]

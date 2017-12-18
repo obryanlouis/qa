@@ -131,6 +131,7 @@ class Trainer:
                       _get_val(current_learning_rate)))
             i = current_iter - 1
             num_bad_checkpoints = 0
+            epoch_start = time.time()
 
             while True:
                 i += 1
@@ -183,11 +184,9 @@ class Trainer:
                     val_em, val_f1 = evaluate_dev_partial(self.session,
                         self.model_builder.get_towers(), self.sq_dataset,
                         self.options, sample_limit=val_ds_size)
-                    self.sq_dataset.increment_val_samples_processed(
-                        val_ds_size)
                     print("[Valid] F1", val_f1, "Em", val_em)
                     print("Time to evaluate train/val: %f"
-                          % (time.time() - eval_start))
+                        % (time.time() - eval_start))
                     self._perform_summary_assignment(self.em, em)
                     self._perform_summary_assignment(self.f1, f1)
                     if self.options.log_exact_match:
@@ -231,3 +230,8 @@ class Trainer:
                             self.options.checkpoint_dir, self.options)
                         print("Saved model at iteration", i)
                         num_bad_checkpoints = 0
+                    print("Total epoch time %s" % readable_time(
+                        time.time() - epoch_start))
+                    print("Cumulative run time %s" % readable_time(
+                        time.time() - train_start_time))
+                    epoch_start = time.time()

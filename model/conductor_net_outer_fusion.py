@@ -4,10 +4,12 @@
 import tensorflow as tf
 
 from model.dropout_util import *
+from model.rnn_util import *
 from model.tf_util import *
 
 
-def conductor_net_outer_fusion(options, encoded_passsage, keep_prob):
+def conductor_net_outer_fusion(options, encoded_passsage, keep_prob,
+    batch_size, sess, use_dropout):
     with tf.variable_scope("conductor_net_outer_fusion"):
         C = encoded_passsage
         C_dim = C.get_shape()[-1]

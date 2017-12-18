@@ -135,7 +135,10 @@ def _eval(session, towers, squad_dataset, options, is_train, sample_limit):
                 text_predictions.append(dataset.get_sentence(example_index, start, end))
                 acceptable_gnd_truths = dataset.get_sentences_for_all_gnd_truths(example_index)
                 ground_truths.append(acceptable_gnd_truths)
-        squad_dataset.increment_val_samples_processed(batch_increment)
+        if not is_train:
+            squad_dataset.increment_val_samples_processed(batch_increment)
+        else:
+            squad_dataset.increment_train_samples_processed(batch_increment)
         if squad_dataset.get_current_dev_file_number() != num_files_processed:
             num_files_processed += 1
 

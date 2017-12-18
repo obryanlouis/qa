@@ -103,7 +103,7 @@ f.DEFINE_integer("num_conductor_net_outer_fusion_layers", 2, "Number of" +
         "outer fusion layers to use for the conductor net model.")
 f.DEFINE_integer("num_conductor_net_self_attention_layers", 2, "Number of" +
         "self attention layers to use for the conductor net model.")
-f.DEFINE_integer("bad_checkpoints_tolerance", 2,
+f.DEFINE_integer("bad_checkpoints_tolerance", 0,
         "Number of bad checkpoints to hit before applying the drop" +
         "in learning rate. Should be >= 0.")
 
