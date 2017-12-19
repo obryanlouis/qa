@@ -40,8 +40,8 @@ def _create_word_similarity(primary_iterator, secondary_iterator, v_wiq_or_wic,
        Output:
          A word-similarity vector shaped [batch_size, N, 1]
     """
-    sh_prim = primary_iterator.get_shape()
-    sh_sec = secondary_iterator.get_shape()
+    sh_prim = primary_iterator.get_shape().as_list()
+    sh_sec = secondary_iterator.get_shape().as_list()
     N, W = sh_prim[1], sh_prim[2]
     M = sh_sec[1]
     prim = tf.reshape(primary_iterator, shape=[batch_size * W, N, 1])
