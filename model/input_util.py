@@ -129,6 +129,8 @@ def create_model_inputs(sess, words_placeholder, ctx, qst,
         if options.use_cove_vectors:
             ctx_cove, qst_cove = _get_cove_vectors(options, ctx_embedded,
                 qst_embedded, cove_cells)
+            ctx_inputs_list.append(ctx_cove)
+            qst_inputs_list.append(qst_cove)
         if options.use_word_fusion_feature:
             ctx_inputs_list.append(_create_word_fusion(options, sq_dataset,
                 ctx_embedded, qst_embedded))
