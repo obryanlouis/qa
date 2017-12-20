@@ -35,7 +35,7 @@ Results
 | ------------------------|:-----------------:| -------- |:------: |
 |Match LSTM               | 59.4%             | 69.5%    |         |
 |Rnet                     | 61.4%             | 71.7%    |         |
-|Mnemonic reader (+ CoVe) | 71.6%             | 80.6%    | Checkout [16b9d2d18b5873f8d84bdd9f6cb4151f27789314](16b9d2d18b5873f8d84bdd9f6cb4151f27789314) RNN size 60, CoVe enabled, dropout 30%, batch size 100 (over 2 GPUs), training time ~6.5 hours ~16.1 min/epoch       |
+|Mnemonic reader (+ CoVe) | 71.6%             | 80.6%    | Checkout [16b9d2d18b5873f8d84bdd9f6cb4151f27789314](https://github.com/obryanlouis/qa/commit/16b9d2d18b5873f8d84bdd9f6cb4151f27789314) RNN size 60, CoVe enabled, dropout 30%, batch size 100 (over 2 GPUs), training time ~6.5 hours ~16.1 min/epoch       |
 
 All results are for a single model rather than an ensemble.
 I didn't train all models for the same duration and there may be bugs or
