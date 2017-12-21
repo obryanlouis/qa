@@ -92,19 +92,9 @@ def _add_char_embedding_inputs(sess, scope, char_embedding, char_data, options,
 def _cast_int32(tensor):
     return tf.cast(tensor, dtype=tf.int32)
 
-def _run_cove(inputs, cove_cells):
-    outputs, _ = tf.nn.bidirectional_dynamic_rnn(cove_cells.forward_cell_l0,
-        cove_cells.backward_cell_l0, inputs, dtype=tf.float32)
-    fw_outputs, bw_outputs = outputs
-    intermediate = tf.concat([fw_outputs, bw_outputs], axis=-1)
-    outputs, _ = tf.nn.bidirectional_dynamic_rnn(cove_cells.forward_cell_l1,
-        cove_cells.backward_cell_l1, intermediate, dtype=tf.float32)
-    fw_outputs, bw_outputs = outputs
-    return tf.concat([fw_outputs, bw_outputs], axis=-1)
-
 def _get_cove_vectors(options, ctx_glove, qst_glove, cove_cells):
-    ctx_outputs = _run_cove(ctx_glove, cove_cells)
-    qst_outputs = _run_cove(qst_glove, cove_cells)
+    ctx_outputs = cove_cells(ctx_glove)
+    qst_outputs = cove_cells(qst_glove)
     return ctx_outputs, qst_outputs
 
 class ModelInputs:

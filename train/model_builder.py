@@ -4,7 +4,7 @@
 import tensorflow as tf
 import time
 
-from model.cove_lstm import *
+from model.cudnn_cove_lstm import *
 from model.model_types import MODEL_TYPES
 
 class ModelBuilder:
@@ -57,7 +57,7 @@ class ModelBuilder:
             create_model_start_time = time.time()
             self.cove_cells = None
             if self.options.use_cove_vectors:
-                self.cove_cells = load_cove_lstm(self.options)
+                self.cove_cells = load_cudnn_cove_lstm(self.options)
             tower_creation_time = 0
             gradient_computation_time = 0
             print("Creating towers")
