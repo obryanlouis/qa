@@ -10,6 +10,7 @@ from model.dropout_util import *
 from model.encoding_util import *
 from model.memory_answer_pointer import *
 from model.rnn_util import *
+from model.stochastic_answer_pointer import *
 
 class MnemonicReader(BaseModel):
     def setup(self):
@@ -26,9 +27,9 @@ class MnemonicReader(BaseModel):
         alignment = run_alignment(self.options, passage_outputs,
             question_outputs, ctx_dim, self.keep_prob,
             self.batch_size, self.sess, self.use_dropout_placeholder) # size = [batch_size, max_ctx_length, 2 * rnn_size]
-        # Step 3. Use a memory-based answer pointer mechanism to get the loss,
+        # Step 3. Use an answer pointer mechanism to get the loss,
         # and start & end span probabilities
         self.loss, self.start_span_probs, self.end_span_probs = \
-            memory_answer_pointer(self.options, alignment, question_outputs,
-                ctx_dim, self.spn_iterator, self.sq_dataset, self.keep_prob,
-                self.sess, self.use_dropout_placeholder)
+            stochastic_answer_pointer(self.options, alignment, question_outputs,
+                self.spn_iterator, self.sq_dataset, self.keep_prob,
+                self.sess, self.batch_size, self.use_dropout_placeholder)

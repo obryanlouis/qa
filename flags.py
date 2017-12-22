@@ -18,7 +18,7 @@ f.DEFINE_string("experiment_name", "test",
 f.DEFINE_string("checkpoint_dir", "checkpoint",
         "Directory to save model weights and metadata.")
 f.DEFINE_float("learning_rate", 1e-3, "Initial learning rate.")
-f.DEFINE_float("min_learning_rate", 1e-5,
+f.DEFINE_float("min_learning_rate", 1e-6,
         "Minimum learning rate, even after decay.")
 f.DEFINE_string("download_dir", "downloads", "Directory for data downloads.")
 f.DEFINE_string("data_dir", "data",
@@ -106,6 +106,8 @@ f.DEFINE_integer("num_conductor_net_self_attention_layers", 2, "Number of" +
 f.DEFINE_integer("bad_checkpoints_tolerance", 1,
         "Number of bad checkpoints to hit before applying the drop" +
         "in learning rate. Should be >= 0.")
+f.DEFINE_integer("num_stochastic_answer_pointer_steps", 5,
+        "Number of steps to use for the stochastic memory answer pointer.")
 
 def get_options_from_flags():
     return tf.app.flags.FLAGS

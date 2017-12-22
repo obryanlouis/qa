@@ -48,7 +48,7 @@ def decode_fusion_net(options, sq_dataset, keep_prob, final_ctx,
         lstm = create_cudnn_lstm(d,
             sess, options, "lstm", keep_prob,
             bidirectional=False, layer_size=d, num_layers=1)
-        qst_summary_reshaped = tf.reshape(qst_summary, [1, batch_size, d])
+        qst_summary_reshaped = tf.reshape(qst_summary, [batch_size, 1, d])
         vq = run_cudnn_lstm_and_return_outputs(weighted_ctx, keep_prob,
             options, lstm, batch_size, use_dropout,
             initial_state_h=qst_summary_reshaped,

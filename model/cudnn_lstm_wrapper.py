@@ -53,6 +53,11 @@ def run_cudnn_lstm(inputs, keep_prob, options, lstm_wrapper, batch_size,
         Inputs:
             inputs: A tensor of size [batch_size, max_time, input_size]
             use_dropout: A tensor that indicates whether to use dropout
+            initial_state_h: The initial hidden state. If present, must
+                be shaped [batch_size, 1 (if unidirectional) or 2 (if
+                bidirectional), rnn_size]
+            initial_state_c: The initial cell state. If present, must
+                be shaped the same as initial_state_h.
         Outputs:
             (output, output_h, output_c)
             output: A tensor of size [batch_size, max_time,
@@ -69,6 +74,9 @@ def run_cudnn_lstm(inputs, keep_prob, options, lstm_wrapper, batch_size,
     if initial_state_h is None or initial_state_c is None:
         initial_state_h = tf.zeros(initial_state_shape)
         initial_state_c = tf.zeros(initial_state_shape)
+    else:
+        initial_state_h = tf.transpose(initial_state_h, perm=[1, 0, 2])
+        initial_state_c = tf.transpose(initial_state_c, perm=[1, 0, 2])
     transposed_inputs = tf.transpose(inputs, perm=[1, 0, 2])
     dropout_inputs = sequence_dropout(transposed_inputs, keep_prob=keep_prob)
     train_output, train_output_h, train_output_c = \
