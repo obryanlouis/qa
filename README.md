@@ -35,7 +35,7 @@ Results
 | ------------------------|:-----------------:| -------- |:------: |
 |Match LSTM               | 59.4%             | 69.5%    |         |
 |Rnet                     | 61.4%             | 71.7%    |         |
-|Mnemonic reader (+ CoVe) | 71.6%             | 80.6%    | Checkout [16b9d2d18b5873f8d84bdd9f6cb4151f27789314](https://github.com/obryanlouis/qa/commit/16b9d2d18b5873f8d84bdd9f6cb4151f27789314) RNN size 60, CoVe enabled, dropout 30%, batch size 100 (over 2 GPUs), training time ~6.5 hours ~16.1 min/epoch       |
+|Mnemonic reader (+ CoVe) | 72.5%             | 81.2%    | Checkout [b31a8e8ec1897c1eef8e80570cca19ea08b85467](https://github.com/obryanlouis/qa/commit/b31a8e8ec1897c1eef8e80570cca19ea08b85467) RNN size 60, CoVe enabled, dropout 30%, batch size 100 (over 2 GPUs), training time ~5 hours ~9.7 min/epoch       |
 
 All results are for a single model rather than an ensemble.
 I didn't train all models for the same duration and there may be bugs or
@@ -50,6 +50,7 @@ Requirements
   but will probably need to manually remove any cove references in the setup.
   This also requires [pytorch](http://pytorch.org/).
 * Tensorflow >= 1.3
+* cuDNN 7 recommended, GPUs required
 
 Using AWS S3
 --------------
