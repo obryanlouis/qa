@@ -93,7 +93,7 @@ class TestData:
         self.context_ner_ds = tf.contrib.data.Dataset.from_tensor_slices(self.context_ner)
         self.question_ner_ds = tf.contrib.data.Dataset.from_tensor_slices(self.question_ner)
 
-        self.zip_ds = tf.data.Dataset.zip({
+        self.zip_ds = tf.contrib.data.Dataset.zip({
             _CONTEXT_KEY: self.ctx_ds,
             _QUESTION_KEY: self.qst_ds,
             _SPAN_KEY: self.spn_ds,
