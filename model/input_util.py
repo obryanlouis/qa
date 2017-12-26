@@ -6,7 +6,9 @@ import tensorflow as tf
 
 from model.cove_lstm import *
 from model.cudnn_lstm_wrapper import *
+from model.dropout_util import *
 from model.fusion_net_util import *
+from model.rnn_util import *
 from model.tf_util import *
 
 def _create_word_fusion(options, sq_dataset, ctx_glove, qst_glove):
@@ -97,6 +99,32 @@ def _get_cove_vectors(options, ctx_glove, qst_glove, cove_cells):
     qst_outputs = cove_cells(qst_glove)
     return ctx_outputs, qst_outputs
 
+def _reembed(scope, inputs_list, input_keep_prob, options, batch_size, sess,
+    use_dropout, glove_inputs, rnn_keep_prob):
+    """See https://arxiv.org/pdf/1712.03609.pdf"""
+    with tf.variable_scope(scope):
+        x = sequence_dropout(tf.concat(inputs_list, axis=-1), input_keep_prob)
+        # No need to use dropout twice here, it is already above.
+        u = run_bidirectional_cudnn_lstm("lm_inputs", x, 1.0,
+            options, batch_size, sess, use_dropout)
+        reembed_dim = glove_inputs.get_shape()[-1].value
+        x_dim = x.get_shape()[-1].value
+        u_dim = u.get_shape()[-1].value
+
+        Wz = tf.get_variable("Wz", dtype=tf.float32, shape=[x_dim,
+            reembed_dim])
+        Wg = tf.get_variable("Wg", dtype=tf.float32, shape=[x_dim,
+            reembed_dim])
+        Uz = tf.get_variable("Uz", dtype=tf.float32, shape=[u_dim,
+            reembed_dim])
+        Ug = tf.get_variable("Ug", dtype=tf.float32, shape=[u_dim,
+            reembed_dim])
+
+        z = tf.tanh(multiply_tensors(x, Wz) + multiply_tensors(u, Uz))
+        g = tf.sigmoid(multiply_tensors(x, Wg) + multiply_tensors(u, Ug))
+        return g * glove_inputs + (1 - g) * z
+
+
 class ModelInputs:
     def __init__(self, ctx_glove, qst_glove, ctx_cove, qst_cove, ctx_concat,
         qst_concat):
@@ -109,7 +137,8 @@ class ModelInputs:
 
 def create_model_inputs(sess, words_placeholder, ctx, qst,
         options, wiq, wic, sq_dataset, ctx_pos, qst_pos, ctx_ner, qst_ner,
-        word_chars, cove_cells, use_dropout, batch_size):
+        word_chars, cove_cells, use_dropout, batch_size, input_keep_prob,
+        rnn_keep_prob):
     with tf.variable_scope("model_inputs"):
         ctx_embedded = tf.nn.embedding_lookup(words_placeholder, ctx)
         qst_embedded = tf.nn.embedding_lookup(words_placeholder, qst)
@@ -154,10 +183,11 @@ def create_model_inputs(sess, words_placeholder, ctx, qst,
             ner_embedding = tf.get_variable("ner_embedding", shape=[2**8, options.ner_embedding_size])
             ctx_inputs_list.append(tf.nn.embedding_lookup(ner_embedding, _cast_int32(ctx_ner)))
             qst_inputs_list.append(tf.nn.embedding_lookup(ner_embedding, _cast_int32(qst_ner)))
-        if len(ctx_inputs_list) == 1:
-            return ModelInputs(ctx_embedded, qst_embedded, ctx_cove, qst_cove,
-                ctx_embedded, qst_embedded)
-        else:
-            return ModelInputs(ctx_embedded, qst_embedded, ctx_cove, qst_cove,
-                tf.concat(ctx_inputs_list, axis=-1),
-                tf.concat(qst_inputs_list, axis=-1))
+
+        ctx_reembed = _reembed("ctx_reembed", ctx_inputs_list, input_keep_prob,
+            options, batch_size, sess, use_dropout, ctx_embedded, rnn_keep_prob)
+        qst_reembed = _reembed("qst_reembed", qst_inputs_list, input_keep_prob,
+            options, batch_size, sess, use_dropout, qst_embedded, rnn_keep_prob)
+
+        return ModelInputs(ctx_embedded, qst_embedded, ctx_cove, qst_cove,
+            ctx_reembed, qst_reembed)

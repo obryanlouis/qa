@@ -59,6 +59,8 @@ f.DEFINE_integer("num_rnn_layers", 1, "The number of rnn layers to use in " +
         "a single multi-rnn cell.")
 f.DEFINE_float("dropout", 0.2, "The amount of dropout to use. Should be " +
         "between 0 (no dropout) and 1.0 (100% dropout).")
+f.DEFINE_float("input_dropout", 0.6, "Similar to above, for inputs")
+f.DEFINE_float("rnn_dropout", 0.1, "Similar to above, for rnn units")
 f.DEFINE_integer("dataset_buffer_size", 100, "Size of the dataset buffer." +
         "See the Tensorflow Dataset API for details.")
 f.DEFINE_boolean("use_fake_dataset", False, "Whether to use a synthetic" +

@@ -37,9 +37,17 @@ class BaseModel:
     def get_keep_prob_placeholder(self):
         return self.keep_prob
 
+    def get_input_keep_prob_placeholder(self):
+        return self.input_keep_prob
+
+    def get_rnn_keep_prob_placeholder(self):
+        return self.rnn_keep_prob
+
     def setup(self):
         self.use_dropout_placeholder = tf.placeholder(tf.bool, name="use_dropout")
         self.keep_prob = tf.placeholder(tf.float32, name="keep_prob")
+        self.input_keep_prob = tf.placeholder(tf.float32, name="input_keep_prob")
+        self.rnn_keep_prob = tf.placeholder(tf.float32, name="rnn_keep_prob")
         self.batch_size = tf.shape(self.ctx_iterator)[0]
         model_inputs = create_model_inputs(self.sess,
                 self.embeddings, self.ctx_iterator,
@@ -50,7 +58,7 @@ class BaseModel:
                 self.ctx_ner_iterator, self.qst_ner_iterator,
                 self.word_chars, self.cove_cells,
                 self.use_dropout_placeholder,
-                self.batch_size)
+                self.batch_size, self.input_keep_prob, self.rnn_keep_prob)
         self.ctx_inputs = model_inputs.ctx_concat
         self.qst_inputs = model_inputs.qst_concat
         self.ctx_glove = model_inputs.ctx_glove

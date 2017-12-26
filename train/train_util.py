@@ -10,6 +10,8 @@ def get_eval_feed_dict(squad_data, options, towers, is_train):
     for i in range(len(towers)):
         tower = towers[i]
         feed_dict[tower.get_keep_prob_placeholder()] = 1
+        feed_dict[tower.get_input_keep_prob_placeholder()] = 1
+        feed_dict[tower.get_rnn_keep_prob_placeholder()] = 1
     return feed_dict
 
 def get_feed_dict(squad_data, options, towers, is_train, use_dropout):
@@ -21,6 +23,10 @@ def get_feed_dict(squad_data, options, towers, is_train, use_dropout):
         tower = towers[i]
         feed_dict[tower.get_keep_prob_placeholder()] = 1 if not use_dropout \
             else 1 - options.dropout
+        feed_dict[tower.get_input_keep_prob_placeholder()] = 1 if not use_dropout \
+            else 1 - options.input_dropout
+        feed_dict[tower.get_rnn_keep_prob_placeholder()] = 1 if not use_dropout \
+            else 1 - options.rnn_dropout
         feed_dict[tower.get_use_dropout_placeholder()] = use_dropout
     train_handle = squad_data.get_train_handle()
     dev_handle = squad_data.get_dev_handle()
