@@ -57,6 +57,10 @@ f.DEFINE_integer("batch_size", 24, "Training batch size. If using GPUs, " +
 f.DEFINE_integer("rnn_size", 100, "The dimension of rnn cells.")
 f.DEFINE_integer("num_rnn_layers", 1, "The number of rnn layers to use in " +
         "a single multi-rnn cell.")
+f.DEFINE_float("input_dropout", 0.5, "The amount of dropout to apply to "
+        "the input. Should be between 0 (no dropout) and 1.0 (100% dropout).")
+f.DEFINE_float("rnn_dropout", 0.1, "The amount of dropout to use for rnn's." +
+        "Should be between 0 (no dropout) and 1.0 (100% dropout).")
 f.DEFINE_float("dropout", 0.2, "The amount of dropout to use. Should be " +
         "between 0 (no dropout) and 1.0 (100% dropout).")
 f.DEFINE_integer("dataset_buffer_size", 100, "Size of the dataset buffer." +

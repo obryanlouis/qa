@@ -99,13 +99,15 @@ def _get_cove_vectors(options, ctx_glove, qst_glove, cove_cells):
 
 class ModelInputs:
     def __init__(self, ctx_glove, qst_glove, ctx_cove, qst_cove, ctx_concat,
-        qst_concat):
+        qst_concat, ctx_concat_without_cove, qst_concat_without_cove):
         self.ctx_glove = ctx_glove # The GloVE vectors
         self.qst_glove = qst_glove
         self.ctx_cove = ctx_cove # The Cove vectors
         self.qst_cove = qst_cove
         self.ctx_concat = ctx_concat # The full set of features
         self.qst_concat = qst_concat
+        self.ctx_concat_without_cove = ctx_concat_without_cove
+        self.qst_concat_without_cove = qst_concat_without_cove
 
 def create_model_inputs(sess, words_placeholder, ctx, qst,
         options, wiq, wic, sq_dataset, ctx_pos, qst_pos, ctx_ner, qst_ner,
@@ -116,11 +118,6 @@ def create_model_inputs(sess, words_placeholder, ctx, qst,
         ctx_inputs_list = [ctx_embedded]
         qst_inputs_list = [qst_embedded]
         ctx_cove, qst_cove = None, None
-        if options.use_cove_vectors:
-            ctx_cove, qst_cove = _get_cove_vectors(options, ctx_embedded,
-                qst_embedded, cove_cells)
-            ctx_inputs_list.append(ctx_cove)
-            qst_inputs_list.append(qst_cove)
         if options.use_word_fusion_feature:
             ctx_inputs_list.append(_create_word_fusion(options, sq_dataset,
                 ctx_embedded, qst_embedded))
@@ -154,10 +151,15 @@ def create_model_inputs(sess, words_placeholder, ctx, qst,
             ner_embedding = tf.get_variable("ner_embedding", shape=[2**8, options.ner_embedding_size])
             ctx_inputs_list.append(tf.nn.embedding_lookup(ner_embedding, _cast_int32(ctx_ner)))
             qst_inputs_list.append(tf.nn.embedding_lookup(ner_embedding, _cast_int32(qst_ner)))
-        if len(ctx_inputs_list) == 1:
-            return ModelInputs(ctx_embedded, qst_embedded, ctx_cove, qst_cove,
-                ctx_embedded, qst_embedded)
-        else:
-            return ModelInputs(ctx_embedded, qst_embedded, ctx_cove, qst_cove,
-                tf.concat(ctx_inputs_list, axis=-1),
-                tf.concat(qst_inputs_list, axis=-1))
+        ctx_inputs_without_cove_list = list(ctx_inputs_list)
+        qst_inputs_without_cove_list = list(qst_inputs_list)
+        if options.use_cove_vectors:
+            ctx_cove, qst_cove = _get_cove_vectors(options, ctx_embedded,
+                qst_embedded, cove_cells)
+            ctx_inputs_list.append(ctx_cove)
+            qst_inputs_list.append(qst_cove)
+        return ModelInputs(ctx_embedded, qst_embedded, ctx_cove, qst_cove,
+            tf.concat(ctx_inputs_list, axis=-1),
+            tf.concat(qst_inputs_list, axis=-1),
+            tf.concat(ctx_inputs_without_cove_list, axis=-1),
+            tf.concat(qst_inputs_without_cove_list, axis=-1))
