@@ -10,19 +10,10 @@ the passages, questions, and answers, as well as a ranking for the
 existing models.
 
 Specifically, this project implements:
-* [Match-LSTM](https://arxiv.org/abs/1608.07905): An early end-to-end neural
-  network model that uses recurrent neural networks and an attention
-  mechanism. This is more of a baseline with respect to other neural network
-  models.
-* [Rnet](aka.ms/rnet): A model that is similar to Match-LSTM, but adds several
-  components to the model including a "gated" attention based mechanism, and
-  a "self-matching" attention mechanism to match the passage against itself.
-* [Mnemonic Reader](https://arxiv.org/abs/1705.02798): A model that uses a
-  "feature-rich" encoder, iterative alignment of the passage and question,
-  and a memory-based answer pointer layer. There is also a "reinforced" version
-  of this model that uses reinforcement learning to fine-tune the model weights
-  after initial training is done with gradient descent, although my
-  implementation does not include that.
+* [Match-LSTM](https://arxiv.org/abs/1608.07905)
+* [Rnet](aka.ms/rnet)
+* [Mnemonic Reader](https://arxiv.org/abs/1705.02798)
+* [Fusion Net](https://arxiv.org/abs/1711.07341)
 
 I primarily made this for my own education, but the code could be used as a
 starting point for another project. Code is written in TensorFlow and uses
@@ -35,7 +26,8 @@ Results
 | ------------------------|:-----------------:| -------- |:------: |
 |Match LSTM               | 59.4%             | 69.5%    |         |
 |Rnet                     | 61.4%             | 71.7%    |         |
-|Mnemonic reader (+ CoVe) | 72.5%             | 81.2%    | Checkout [b31a8e8ec1897c1eef8e80570cca19ea08b85467](https://github.com/obryanlouis/qa/commit/b31a8e8ec1897c1eef8e80570cca19ea08b85467) RNN size 60, CoVe enabled, dropout 30%, batch size 100 (over 2 GPUs), training time ~5 hours ~9.7 min/epoch       |
+|Fusion Net               | 72.0%             | 81.2%    |         |
+|Mnemonic reader (+ CoVe) | 72.5%             | 81.2%    | Checkout [b31a8e8ec1897c1eef8e80570cca19ea08b85467](https://github.com/obryanlouis/qa/commit/b31a8e8ec1897c1eef8e80570cca19ea08b85467) RNN size 60, CoVe enabled, dropout 30%, batch size 100 (over 2 GPUs), training time ~5 hours, ~9.7 min/epoch       |
 
 All results are for a single model rather than an ensemble.
 I didn't train all models for the same duration and there may be bugs or

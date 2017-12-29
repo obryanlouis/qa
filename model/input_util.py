@@ -94,19 +94,19 @@ def _add_char_embedding_inputs(sess, scope, char_embedding, char_data, options,
 def _cast_int32(tensor):
     return tf.cast(tensor, dtype=tf.int32)
 
-def _get_cove_vectors(options, ctx_glove, qst_glove, cove_cells):
+def _get_cove_vectors(ctx_glove, qst_glove, cove_cells):
     ctx_outputs = cove_cells(ctx_glove)
     qst_outputs = cove_cells(qst_glove)
     return ctx_outputs, qst_outputs
 
-def _reembed(scope, inputs_list, input_keep_prob, options, batch_size, sess,
-    use_dropout, glove_inputs, rnn_keep_prob):
+def _reembed(scope, x, options, batch_size, sess, use_dropout, glove_inputs,
+    keep_prob):
     """See https://arxiv.org/pdf/1712.03609.pdf"""
     with tf.variable_scope(scope):
-        x = sequence_dropout(tf.concat(inputs_list, axis=-1), input_keep_prob)
-        # No need to use dropout twice here, it is already above.
+        # No need to use dropout twice here, it is already in the input.
         u = run_bidirectional_cudnn_lstm("lm_inputs", x, 1.0,
             options, batch_size, sess, use_dropout)
+        u = sequence_dropout(u, keep_prob)
         reembed_dim = glove_inputs.get_shape()[-1].value
         x_dim = x.get_shape()[-1].value
         u_dim = u.get_shape()[-1].value
@@ -138,18 +138,12 @@ class ModelInputs:
 def create_model_inputs(sess, words_placeholder, ctx, qst,
         options, wiq, wic, sq_dataset, ctx_pos, qst_pos, ctx_ner, qst_ner,
         word_chars, cove_cells, use_dropout, batch_size, input_keep_prob,
-        rnn_keep_prob):
+        keep_prob):
     with tf.variable_scope("model_inputs"):
         ctx_embedded = tf.nn.embedding_lookup(words_placeholder, ctx)
         qst_embedded = tf.nn.embedding_lookup(words_placeholder, qst)
         ctx_inputs_list = [ctx_embedded]
         qst_inputs_list = [qst_embedded]
-        ctx_cove, qst_cove = None, None
-        if options.use_cove_vectors:
-            ctx_cove, qst_cove = _get_cove_vectors(options, ctx_embedded,
-                qst_embedded, cove_cells)
-            ctx_inputs_list.append(ctx_cove)
-            qst_inputs_list.append(qst_cove)
         if options.use_word_fusion_feature:
             ctx_inputs_list.append(_create_word_fusion(options, sq_dataset,
                 ctx_embedded, qst_embedded))
@@ -184,10 +178,24 @@ def create_model_inputs(sess, words_placeholder, ctx, qst,
             ctx_inputs_list.append(tf.nn.embedding_lookup(ner_embedding, _cast_int32(ctx_ner)))
             qst_inputs_list.append(tf.nn.embedding_lookup(ner_embedding, _cast_int32(qst_ner)))
 
-        ctx_reembed = _reembed("ctx_reembed", ctx_inputs_list, input_keep_prob,
-            options, batch_size, sess, use_dropout, ctx_embedded, rnn_keep_prob)
-        qst_reembed = _reembed("qst_reembed", qst_inputs_list, input_keep_prob,
-            options, batch_size, sess, use_dropout, qst_embedded, rnn_keep_prob)
+        final_ctx = sequence_dropout(tf.concat(ctx_inputs_list, axis=-1),
+            input_keep_prob)
+        final_qst = sequence_dropout(tf.concat(qst_inputs_list, axis=-1),
+            input_keep_prob)
+        if options.use_token_reembedding:
+            final_ctx = _reembed("ctx_reembed", final_ctx,
+                options, batch_size, sess, use_dropout, ctx_embedded, keep_prob)
+            final_qst = _reembed("qst_reembed", final_qst,
+                options, batch_size, sess, use_dropout, qst_embedded, keep_prob)
+
+        ctx_cove, qst_cove = None, None
+        if options.use_cove_vectors:
+            ctx_cove, qst_cove = _get_cove_vectors(ctx_embedded,
+                qst_embedded, cove_cells)
+            final_ctx = tf.concat([final_ctx,
+                sequence_dropout(ctx_cove, input_keep_prob)], axis=-1)
+            final_qst = tf.concat([final_qst,
+                sequence_dropout(qst_cove, input_keep_prob)], axis=-1)
 
         return ModelInputs(ctx_embedded, qst_embedded, ctx_cove, qst_cove,
-            ctx_reembed, qst_reembed)
+            final_ctx, final_qst)
