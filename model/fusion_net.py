@@ -12,6 +12,7 @@ from model.fusion_net_decoder import *
 from model.fusion_net_util import *
 from model.memory_answer_pointer import *
 from model.rnn_util import *
+from model.stochastic_answer_pointer import *
 
 class FusionNet(BaseModel):
     def setup(self):
@@ -74,6 +75,11 @@ class FusionNet(BaseModel):
 
         # Step 5. Decode the answer start & end.
         self.loss, self.start_span_probs, self.end_span_probs = \
-            decode_fusion_net(self.options, self.sq_dataset, self.keep_prob,
-                final_ctx, qst_understanding, self.batch_size, self.spn_iterator,
-                self.sess, self.use_dropout_placeholder)
+            stochastic_answer_pointer(self.options, final_ctx, qst_understanding,
+                self.spn_iterator, self.sq_dataset, self.keep_prob,
+                self.sess, self.batch_size, self.use_dropout_placeholder)
+# Alternative:
+#        self.loss, self.start_span_probs, self.end_span_probs = \
+#            decode_fusion_net(self.options, self.sq_dataset, self.keep_prob,
+#                final_ctx, qst_understanding, self.batch_size, self.spn_iterator,
+#                self.sess, self.use_dropout_placeholder)
