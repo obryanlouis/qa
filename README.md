@@ -11,13 +11,14 @@ existing models.
 
 Specifically, this project implements:
 * [Match-LSTM](https://arxiv.org/abs/1608.07905)
-* [Rnet](aka.ms/rnet)
+* [Rnet](https://www.microsoft.com/en-us/research/publication/mrc/)
 * [Mnemonic Reader](https://arxiv.org/abs/1705.02798)
 * [Fusion Net](https://arxiv.org/abs/1711.07341)
 
 I primarily made this for my own education, but the code could be used as a
-starting point for another project. Code is written in TensorFlow and uses
-(optional) AWS S3 storage for model checkpointing and data storage.
+starting point for another project. The models are written in TensorFlow and 
+the project uses (optional) AWS S3 storage for model checkpointing and
+data storage.
 
 
 Results
@@ -26,8 +27,8 @@ Results
 | ------------------------|:-----------------:| -------- |:------: |
 |Match LSTM               | 59.4%             | 69.5%    |         |
 |Rnet                     | 61.4%             | 71.7%    |         |
-|Fusion Net               | 72.0%             | 81.2%    |         |
-|Mnemonic reader (+ CoVe) | 72.5%             | 81.2%    | Checkout [b31a8e8ec1897c1eef8e80570cca19ea08b85467](https://github.com/obryanlouis/qa/commit/b31a8e8ec1897c1eef8e80570cca19ea08b85467) RNN size 60, CoVe enabled, dropout 30%, batch size 100 (over 2 GPUs), training time ~5 hours, ~9.7 min/epoch       |
+|Fusion Net               | 72.0%             | 81.2%    | Checkout [315c94979e1498707c4a1928d4c90db6a6d8f384](https://github.com/obryanlouis/qa/commit/315c94979e1498707c4a1928d4c90db6a6d8f384) `python3 train_local.py --model_type=fusion_net --input_dropout=0.6 --rnn_dropout=0.4 --dropout=0.4 --rnn_size=60 --batch_size=45 --use_token_reembedding=True` ~15 min/epoch over 2 1080 Ti GPUs        |
+|Mnemonic reader (+ CoVe) | 72.5%             | 81.2%    | Checkout [b31a8e8ec1897c1eef8e80570cca19ea08b85467](https://github.com/obryanlouis/qa/commit/b31a8e8ec1897c1eef8e80570cca19ea08b85467) `python3 train_local.py --model_type=mnemonic_reader --rnn_size=60 --use_cove_vectors=True --dropout=0.3 --batch_size=50` training time ~5 hours over 2 1080 Ti GPUs, ~9.7 min/epoch     |
 
 All results are for a single model rather than an ensemble.
 I didn't train all models for the same duration and there may be bugs or
