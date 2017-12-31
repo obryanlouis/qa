@@ -25,10 +25,10 @@ Results
 ------------
 |Model                    | Dev Em            | Dev F1   | Details |
 | ------------------------|:-----------------:| -------- |:------: |
-|Match LSTM               | 59.4%             | 69.5%    |         |
-|Rnet                     | 61.4%             | 71.7%    |         |
-|Fusion Net               | 72.0%             | 81.2%    | Checkout [88200b7f3e0b9edb051d5af0efe67f7161070b2a](https://github.com/obryanlouis/qa/commit/88200b7f3e0b9edb051d5af0efe67f7161070b2a) `python3 train_local.py --model_type=fusion_net --input_dropout=0.6 --rnn_dropout=0.4 --dropout=0.4 --rnn_size=60 --batch_size=45 --use_token_reembedding=True` ~15 min/epoch over 2 1080 Ti GPUs        |
+|Fusion Net               | 74.1%             | 82.6%    | Checkout [4aeaf74fd97f730aed3b1a753a427628a8729144](https://github.com/obryanlouis/qa/commit/4aeaf74fd97f730aed3b1a753a427628a8729144) `python3 train_local.py --model_type=fusion_net --rnn_size=128 --batch_size=16 --input_dropout=0.4 --rnn_dropout=0.3 --dropout=0.4` training time ~11 hours over 2 1080 Ti GPUs, ~31 min/epoch        |
 |Mnemonic reader (+ CoVe) | 72.5%             | 81.2%    | Checkout [b31a8e8ec1897c1eef8e80570cca19ea08b85467](https://github.com/obryanlouis/qa/commit/b31a8e8ec1897c1eef8e80570cca19ea08b85467) `python3 train_local.py --model_type=mnemonic_reader --rnn_size=60 --use_cove_vectors=True --dropout=0.3 --batch_size=50` training time ~5 hours over 2 1080 Ti GPUs, ~9.7 min/epoch     |
+|Rnet                     | 61.4%             | 71.7%    |         |
+|Match LSTM               | 59.4%             | 69.5%    |         |
 
 All results are for a single model rather than an ensemble.
 I didn't train all models for the same duration and there may be bugs or
