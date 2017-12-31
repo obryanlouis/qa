@@ -63,7 +63,7 @@ def _create_char_embedding(sq_dataset, options):
             dtype=tf.float32)
 
 def _run_cudnn_char_birnn(sess, scope, embedded_chars_tensor, options,
-    sq_dataset, use_dropout):
+    sq_dataset, use_dropout, rnn_keep_prob):
     """
         Inputs:
             embedded_chars_tensor: Shaped [batch_size, max_(ctx|qst)_length, max_word_length, char_embedding_size]
@@ -80,15 +80,15 @@ def _run_cudnn_char_birnn(sess, scope, embedded_chars_tensor, options,
         inputs = tf.reshape(embedded_chars_tensor, [rnn_batch_size,
             sq_dataset.max_word_len, options.character_embedding_size])
         rnn_outputs, _ = run_cudnn_lstm_and_return_hidden_outputs(
-                inputs, tf.constant(1.0), options, lstm, rnn_batch_size,
+                inputs, rnn_keep_prob, options, lstm, rnn_batch_size,
                 use_dropout) # size = [batch_size * N,  2, rnn_size]
         return tf.reshape(rnn_outputs, [batch_size, N, 2 * options.rnn_size])
 
 def _add_char_embedding_inputs(sess, scope, char_embedding, char_data, options,
-        inputs_list, sq_dataset, use_dropout):
+        inputs_list, sq_dataset, use_dropout, rnn_keep_prob):
     chars_embedded = tf.nn.embedding_lookup(char_embedding, tf.cast(char_data, dtype=tf.int32)) # size = [batch_size, max_(ctx|qst)_length, max_word_length, char_embedding_size]
     chars_input = _run_cudnn_char_birnn(sess, scope, chars_embedded, options,
-        sq_dataset, use_dropout)
+        sq_dataset, use_dropout, rnn_keep_prob)
     inputs_list.append(chars_input)
 
 def _cast_int32(tensor):
@@ -138,64 +138,73 @@ class ModelInputs:
 def create_model_inputs(sess, words_placeholder, ctx, qst,
         options, wiq, wic, sq_dataset, ctx_pos, qst_pos, ctx_ner, qst_ner,
         word_chars, cove_cells, use_dropout, batch_size, input_keep_prob,
-        keep_prob):
+        keep_prob, rnn_keep_prob):
     with tf.variable_scope("model_inputs"):
-        ctx_embedded = tf.nn.embedding_lookup(words_placeholder, ctx)
-        qst_embedded = tf.nn.embedding_lookup(words_placeholder, qst)
-        ctx_inputs_list = [ctx_embedded]
-        qst_inputs_list = [qst_embedded]
+        ctx_glove = tf.nn.embedding_lookup(words_placeholder, ctx)
+        qst_glove = tf.nn.embedding_lookup(words_placeholder, qst)
+        ctx_glove_dropout = sequence_dropout(ctx_glove, input_keep_prob)
+        qst_glove_dropout = sequence_dropout(qst_glove, input_keep_prob)
+        ctx_inputs_list = [ctx_glove_dropout]
+        qst_inputs_list = [qst_glove_dropout]
         if options.use_word_fusion_feature:
             ctx_inputs_list.append(_create_word_fusion(options, sq_dataset,
-                ctx_embedded, qst_embedded))
+                ctx_glove_dropout, qst_glove_dropout))
         if options.use_word_in_question_feature:
             wiq_sh = tf.shape(wiq)
             wiq_feature_shape = [wiq_sh[0], wiq_sh[1]] + [1]
             wic_sh = tf.shape(wic)
             wic_feature_shape = [wic_sh[0], wic_sh[1]] + [1]
-            ctx_inputs_list.append(tf.reshape(tf.cast(wiq, dtype=tf.float32), shape=wiq_feature_shape))
-            qst_inputs_list.append(tf.reshape(tf.cast(wic, dtype=tf.float32), shape=wic_feature_shape))
+            ctx_inputs_list.append(tf.reshape(tf.cast(wiq, dtype=tf.float32),
+                shape=wiq_feature_shape))
+            qst_inputs_list.append(tf.reshape(tf.cast(wic, dtype=tf.float32),
+                shape=wic_feature_shape))
         if options.use_word_similarity_feature:
             v_wiq = tf.get_variable("v_wiq", shape=[sq_dataset.word_vec_size])
             v_wic = tf.get_variable("v_wic", shape=[sq_dataset.word_vec_size])
-            ctx_inputs_list.append(_create_word_similarity(ctx_embedded, qst_embedded, v_wiq, batch_size))
-            qst_inputs_list.append(_create_word_similarity(qst_embedded, ctx_embedded, v_wic, batch_size))
+            ctx_inputs_list.append(_create_word_similarity(ctx_glove_dropout,
+                qst_glove_dropout, v_wiq, batch_size))
+            qst_inputs_list.append(_create_word_similarity(qst_glove_dropout,
+                ctx_glove_dropout, v_wic, batch_size))
         if options.use_character_data:
             char_embedding = _create_char_embedding(sq_dataset, options)
             ctx_chars = tf.nn.embedding_lookup(word_chars, ctx) # size = [batch_size, max_ctx_length, max_word_length]
             qst_chars = tf.nn.embedding_lookup(word_chars, qst) # size = [batch_size, max_qst_length, max_word_length]
             _add_char_embedding_inputs(sess, "ctx_embedding", char_embedding,
                     ctx_chars, options, ctx_inputs_list, sq_dataset,
-                    use_dropout)
+                    use_dropout, rnn_keep_prob)
             _add_char_embedding_inputs(sess, "qst_embedding", char_embedding,
                     qst_chars, options, qst_inputs_list, sq_dataset,
-                    use_dropout)
+                    use_dropout, rnn_keep_prob)
         if options.use_pos_tagging_feature:
             pos_embedding = tf.get_variable("pos_embedding", shape=[2**8, options.pos_embedding_size])
-            ctx_inputs_list.append(tf.nn.embedding_lookup(pos_embedding, _cast_int32(ctx_pos)))
-            qst_inputs_list.append(tf.nn.embedding_lookup(pos_embedding, _cast_int32(qst_pos)))
+            ctx_inputs_list.append(tf.nn.embedding_lookup(pos_embedding,
+                _cast_int32(ctx_pos)))
+            qst_inputs_list.append(tf.nn.embedding_lookup(pos_embedding,
+                _cast_int32(qst_pos)))
         if options.use_ner_feature:
-            ner_embedding = tf.get_variable("ner_embedding", shape=[2**8, options.ner_embedding_size])
-            ctx_inputs_list.append(tf.nn.embedding_lookup(ner_embedding, _cast_int32(ctx_ner)))
-            qst_inputs_list.append(tf.nn.embedding_lookup(ner_embedding, _cast_int32(qst_ner)))
+            ner_embedding = tf.get_variable("ner_embedding",
+                shape=[2**8, options.ner_embedding_size])
+            ctx_inputs_list.append(tf.nn.embedding_lookup(ner_embedding,
+                _cast_int32(ctx_ner)))
+            qst_inputs_list.append(tf.nn.embedding_lookup(ner_embedding,
+                _cast_int32(qst_ner)))
 
-        final_ctx = sequence_dropout(tf.concat(ctx_inputs_list, axis=-1),
-            input_keep_prob)
-        final_qst = sequence_dropout(tf.concat(qst_inputs_list, axis=-1),
-            input_keep_prob)
+        final_ctx = tf.concat(ctx_inputs_list, axis=-1)
+        final_qst = tf.concat(qst_inputs_list, axis=-1)
         if options.use_token_reembedding:
             final_ctx = _reembed("ctx_reembed", final_ctx,
-                options, batch_size, sess, use_dropout, ctx_embedded, keep_prob)
+                options, batch_size, sess, use_dropout, ctx_glove_dropout, keep_prob)
             final_qst = _reembed("qst_reembed", final_qst,
-                options, batch_size, sess, use_dropout, qst_embedded, keep_prob)
+                options, batch_size, sess, use_dropout, qst_glove_dropout, keep_prob)
 
         ctx_cove, qst_cove = None, None
         if options.use_cove_vectors:
-            ctx_cove, qst_cove = _get_cove_vectors(ctx_embedded,
-                qst_embedded, cove_cells)
-            final_ctx = tf.concat([final_ctx,
-                sequence_dropout(ctx_cove, input_keep_prob)], axis=-1)
-            final_qst = tf.concat([final_qst,
-                sequence_dropout(qst_cove, input_keep_prob)], axis=-1)
+            ctx_cove, qst_cove = _get_cove_vectors(ctx_glove,
+                qst_glove, cove_cells)
+            ctx_cove = sequence_dropout(ctx_cove, input_keep_prob)
+            qst_cove = sequence_dropout(qst_cove, input_keep_prob)
+            final_ctx = tf.concat([final_ctx, ctx_cove], axis=-1)
+            final_qst = tf.concat([final_qst, qst_cove], axis=-1)
 
-        return ModelInputs(ctx_embedded, qst_embedded, ctx_cove, qst_cove,
-            final_ctx, final_qst)
+        return ModelInputs(ctx_glove_dropout, qst_glove_dropout,
+            ctx_cove, qst_cove, final_ctx, final_qst)

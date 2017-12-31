@@ -18,7 +18,7 @@ f.DEFINE_string("experiment_name", "test",
 f.DEFINE_string("checkpoint_dir", "checkpoint",
         "Directory to save model weights and metadata.")
 f.DEFINE_float("learning_rate", 1e-3, "Initial learning rate.")
-f.DEFINE_float("min_learning_rate", 1e-6,
+f.DEFINE_float("min_learning_rate", 1e-8,
         "Minimum learning rate, even after decay.")
 f.DEFINE_string("download_dir", "downloads", "Directory for data downloads.")
 f.DEFINE_string("data_dir", "data",
