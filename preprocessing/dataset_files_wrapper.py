@@ -24,7 +24,9 @@ class DatasetFilesWrapper():
             self._full_file_name(constants.CONTEXT_POS_FILE_PATTERN),
             self._full_file_name(constants.QUESTION_POS_FILE_PATTERN),
             self._full_file_name(constants.CONTEXT_NER_FILE_PATTERN),
-            self._full_file_name(constants.QUESTION_NER_FILE_PATTERN))
+            self._full_file_name(constants.QUESTION_NER_FILE_PATTERN),
+            self._full_file_name(constants.QUESTION_IDS_TO_SQUAD_QUESTION_ID_FILE_PATTERN),
+            self._full_file_name(constants.QUESTION_IDS_TO_PASSAGE_CONTEXT_FILE_PATTERN))
         self.next_batch_number += 1
         return file_names
 
@@ -45,7 +47,9 @@ class FileNames():
                  context_pos_file_name,
                  question_pos_file_name,
                  context_ner_file_name,
-                 question_ner_file_name):
+                 question_ner_file_name,
+                 question_ids_to_squad_question_id_file_name,
+                 question_ids_to_passage_context_file_name):
         self.text_tokens_file_name = text_tokens_file_name
         self.qst_file_name = qst_file_name
         self.ctx_file_name = ctx_file_name
@@ -59,3 +63,7 @@ class FileNames():
         self.question_pos_file_name = question_pos_file_name
         self.context_ner_file_name = context_ner_file_name
         self.question_ner_file_name = question_ner_file_name
+        self.question_ids_to_squad_question_id_file_name = \
+            question_ids_to_squad_question_id_file_name
+        self.question_ids_to_passage_context_file_name = \
+            question_ids_to_passage_context_file_name

@@ -72,6 +72,10 @@ class _SquadDataset:
             constants.QUESTION_NER_FILE_PATTERN)
         self.text_tokens_files = get_data_files_list(files_dir,
             constants.TEXT_TOKENS_FILE_PATTERN)
+        self.question_ids_to_squad_id_files = get_data_files_list(files_dir,
+            constants.QUESTION_IDS_TO_SQUAD_QUESTION_ID_FILE_PATTERN)
+        self.question_ids_to_passage_context_files = get_data_files_list(files_dir,
+            constants.QUESTION_IDS_TO_PASSAGE_CONTEXT_FILE_PATTERN)
 
         assert len(self.context_files) > 0
         assert len(self.context_files) == len(self.question_files)
@@ -85,6 +89,8 @@ class _SquadDataset:
         assert len(self.context_files) == len(self.question_pos_files)
         assert len(self.context_files) == len(self.question_ner_files)
         assert len(self.context_files) == len(self.text_tokens_files)
+        assert len(self.context_files) == len(self.question_ids_to_squad_id_files)
+        assert len(self.context_files) == len(self.question_ids_to_passage_context_files)
 
         self.zip_ds = tf.contrib.data.Dataset.zip({
             _CONTEXT_KEY: self._create_ds(self.context_placeholder),
@@ -104,15 +110,16 @@ class _SquadDataset:
         self.num_samples_in_current_files = 0
 
     def get_sentences_for_all_gnd_truths(self, question_id):
-        gnd_truths_list = self.question_ids_to_ground_truths[question_id]
-        sentences = []
-        for start_idx, end_idx in gnd_truths_list:
-            sentences.append(self.get_sentence(question_id, start_idx, end_idx))
-        return sentences
+        passage_context = self.question_ids_to_passage_context[question_id]
+        return passage_context.acceptable_gnd_truths
 
     def get_sentence(self, example_idx, start_idx, end_idx):
-        list_text_tokens = self.text_tokens_dict[example_idx]
-        return " ".join(list_text_tokens[start_idx: end_idx + 1])
+        # A 'PassageContext' defined in preprocessing/create_train_data.py
+        passage_context = self.question_ids_to_passage_context[example_idx]
+        max_word_id = max(passage_context.word_id_to_text_positions.keys())
+        text_start_idx = passage_context.word_id_to_text_positions[min(start_idx, max_word_id)].start_idx
+        text_end_idx = passage_context.word_id_to_text_positions[min(end_idx, max_word_id)].end_idx
+        return passage_context.passage_str[text_start_idx:text_end_idx]
 
     def _create_ds(self, placeholder):
         return tf.contrib.data.Dataset.from_tensor_slices(placeholder) \
@@ -158,6 +165,10 @@ class _SquadDataset:
         self.qst_ner = self._load_2d_np_arr_with_possible_padding(self.question_ner_files[self.current_file_number], max_qst_len, pad_value=0)
         self.text_tokens_dict = load_text_file(
             self.text_tokens_files[self.current_file_number])
+        self.question_ids_to_squad_ids = load_text_file(
+            self.question_ids_to_squad_id_files[self.current_file_number])
+        self.question_ids_to_passage_context = load_text_file(
+            self.question_ids_to_passage_context_files[self.current_file_number])
 
         if increment_file_number:
             self.current_file_number = (self.current_file_number + 1) % len(self.context_files)

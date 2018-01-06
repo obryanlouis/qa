@@ -70,17 +70,24 @@ python3 setup.py
 ```
 
 ### Training
+The following command will start model training and create or restore the
+current model parameters from the last checkpoint (if it exists). After each
+epcoh, the Dev F1/Em are calculated, and if the F1 score is a new high score,
+then the model parameters are saved. There is no mechanism to automatically
+stop training; it should be done manually.
 ```
 python3 train_local.py --num_gpus=<NUMBER OF GPUS>
 ```
 
 ### Evaluation
 The following command will evaluate the model
-on the Dev dataset and print out the exact match (em) and f1 scores.
+on the Dev dataset and print out the exact match and f1 scores.
+To make it easier to use the compatible SQuAD-formatted model outputs, the
+predicted strings for each question will be written to the `evaluation_dir`
+in a file called `predictions.json.`
 In addition, if the `visualize_evaluated_results` flag is `true`, then
-the passsages, questions, ground truth spans, and spans predicted by the
-model will be written to output files specified in the `evaluation_dir`
-flag.
+the passsages, questions, and ground truth spans will be written to output
+files specified in the `evaluation_dir` flag.
 
 ```
 python3 evaluate_local.py --num_gpus=<NUMBER OF GPUS>

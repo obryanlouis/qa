@@ -1,6 +1,7 @@
 """Utility methods for evaluating a model.
 """
 
+import json
 import math
 import os
 import time
@@ -90,6 +91,7 @@ def _eval(session, towers, squad_dataset, options, is_train, sample_limit):
     estimated_total_dev_samples = squad_dataset.estimate_total_dev_ds_size()
     total_samples_processed = 0
     start_time = time.time()
+    squad_prediction_format = {} # key=squad question id, value=prediction (string)
     while True:
         if total_samples_processed >= estimated_total_dev_samples \
             and num_dev_files == 1:
@@ -126,15 +128,20 @@ def _eval(session, towers, squad_dataset, options, is_train, sample_limit):
                 start, end = get_best_start_and_end(start_span_probs[zz],
                     end_span_probs[zz], options)
                 example_index = data_indices[zz]
-                passages.append(dataset.get_sentence(example_index, 0, squad_dataset.get_max_ctx_len() - 1))
                 question_word_ids = qst_values[zz]
                 question = find_question_sentence(question_word_ids, squad_dataset.vocab)
-                questions.append(question)
-                # These need to be the original sentences from the training/dev
-                # sets, without any padding/unique word replacements.
-                text_predictions.append(dataset.get_sentence(example_index, start, end))
+                prediction_str = dataset.get_sentence(example_index, start, end)
+                if dataset.question_ids_to_squad_ids is not None:
+                    squad_question_id = \
+                        dataset.question_ids_to_squad_ids[example_index]
+                    if squad_question_id in squad_prediction_format:
+                        continue
+                    squad_prediction_format[squad_question_id] = prediction_str
+                text_predictions.append(prediction_str)
                 acceptable_gnd_truths = dataset.get_sentences_for_all_gnd_truths(example_index)
                 ground_truths.append(acceptable_gnd_truths)
+                passages.append(dataset.get_sentence(example_index, 0, squad_dataset.get_max_ctx_len() - 1))
+                questions.append(question)
         if not is_train:
             squad_dataset.increment_val_samples_processed(batch_increment)
         else:
@@ -155,6 +162,10 @@ def _eval(session, towers, squad_dataset, options, is_train, sample_limit):
                     num_dev_files, readable_eta(est_time_left)),
                 end="\r", flush=True)
     print("")
+    if not is_train:
+        with open(os.path.join(options.evaluation_dir,
+            "predictions.json"), mode="w") as predictions_file:
+            json.dump(squad_prediction_format, predictions_file)
     if options.verbose_logging:
         print("text_predictions", utf8_str(text_predictions),
               "ground_truths", utf8_str(ground_truths))

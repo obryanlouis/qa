@@ -19,6 +19,22 @@ from preprocessing.vocab_util import get_vocab
 # tries to make sure that at least one of the "qa" options in the acceptable
 # answers list is accurate and includes it in the data set.
 
+class TextPosition:
+    def __init__(self, start_idx, end_idx):
+        self.start_idx = start_idx
+        self.end_idx = end_idx
+
+class PassageContext:
+    '''Class used to save the tokenization positions in a given passage
+       so that the original strings can be used for constructing answer
+       spans rather than joining tokenized strings, which isn't 100% correct.
+    '''
+    def __init__(self, passage_str, word_id_to_text_positions,
+        acceptable_gnd_truths):
+        self.passage_str = passage_str
+        self.word_id_to_text_positions = word_id_to_text_positions
+        self.acceptable_gnd_truths = acceptable_gnd_truths
+
 class DataParser():
     def __init__(self, data_dir, download_dir):
         self.data_dir = data_dir
@@ -177,6 +193,8 @@ class DataParser():
             question_pos = []
             context_ner = []
             question_ner = []
+            question_ids_to_squad_question_id = {}
+            question_ids_to_passage_context = {}
             self.value_idx = 0
             for article in dataset:
                 for paragraph in article["paragraphs"]:
@@ -186,13 +204,27 @@ class DataParser():
                     assert tok_context is not None
                     ctx_offset_dict = {}
                     ctx_end_offset_dict = {}
+                    word_idx_to_text_position = {}
                     for z in range(len(tok_context)):
                         tok = tok_context[z]
-                        ctx_offset_dict[tok.idx] = tok
-                        ctx_end_offset_dict[tok.idx + len(tok.text)] = tok
+                        st = tok.idx
+                        end = tok.idx + len(tok.text)
+                        ctx_offset_dict[st] = tok
+                        ctx_end_offset_dict[end] = tok
+                        word_idx_to_text_position[z] = TextPosition(st, end)
                     for qa in paragraph["qas"]:
                         self.question_id += 1
+                        acceptable_gnd_truths = []
+                        for answer in qa["answers"]:
+                            acceptable_gnd_truths.append(answer["text"])
+                        question_ids_to_passage_context[self.question_id] = \
+                            PassageContext(context, word_idx_to_text_position,
+                                acceptable_gnd_truths)
                         question = qa["question"]
+                        squad_question_id = qa["id"]
+                        assert squad_question_id is not None
+                        question_ids_to_squad_question_id[self.question_id] = \
+                            squad_question_id
                         tok_question = self.nlp(question)
                         qst_ner_dict = self._get_ner_dict(tok_question)
                         assert tok_question is not None
@@ -229,7 +261,9 @@ class DataParser():
                 context_pos = context_pos,
                 question_pos = question_pos,
                 context_ner = context_ner,
-                question_ner = question_ner)
+                question_ner = question_ner,
+                question_ids_to_squad_question_id = question_ids_to_squad_question_id,
+                question_ids_to_passage_context = question_ids_to_passage_context)
 
     def _create_padded_array(self, list_of_py_arrays, max_len, pad_value):
         return [py_arr + [pad_value] * (max_len - len(py_arr)) for py_arr in list_of_py_arrays]

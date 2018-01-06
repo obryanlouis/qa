@@ -7,9 +7,14 @@ import tensorflow as tf
 PRINT_LIMIT = 10
 WORD_PRINT_LIMIT = 5
 
-def _print_qst_or_ctx_np_arr(arr, vocab, ds, is_ctx, wiq_or_wic):
+def _print_qst_or_ctx_np_arr(arr, vocab, ds, is_ctx, wiq_or_wic,
+    question_ids=None, question_ids_to_squad_ids=None):
     for z in range(PRINT_LIMIT):
         l = []
+        if question_ids_to_squad_ids is not None:
+            question_id = question_ids[z]
+            squad_id = question_ids_to_squad_ids[question_id]
+            l.append("[SQUAD ID: " + squad_id + "]")
         for zz in range(arr.shape[1]):
             i = arr[z, zz]
             if i == vocab.PAD_ID:
@@ -29,9 +34,12 @@ def _print_gnd_truths(ds, vocab):
 
 def _print_ds(vocab, ds):
     print("Context")
-    _print_qst_or_ctx_np_arr(ds.ctx, vocab, ds, is_ctx=True, wiq_or_wic=ds.wiq)
+    _print_qst_or_ctx_np_arr(ds.ctx, vocab, ds, is_ctx=True, wiq_or_wic=ds.wiq,
+        question_ids=ds.qid)
     print("Questions")
-    _print_qst_or_ctx_np_arr(ds.qst, vocab, ds, is_ctx=False, wiq_or_wic=ds.wic)
+    _print_qst_or_ctx_np_arr(ds.qst, vocab, ds, is_ctx=False, wiq_or_wic=ds.wic,
+        question_ids=ds.qid,
+        question_ids_to_squad_ids=ds.question_ids_to_squad_ids)
     print("Spans")
     print(ds.spn[:PRINT_LIMIT])
     print("Ground truths")

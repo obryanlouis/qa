@@ -35,6 +35,8 @@ _QUESTION_NER_KEY = "question.ner"
 class _TestDataset:
     def __init__(self, test_data):
         self.test_data = test_data
+        self.question_ids_to_squad_ids = None
+        self.question_ids_to_passage_context = None
 
     def get_sentences_for_all_gnd_truths(self, ctx_id):
         sentences = []

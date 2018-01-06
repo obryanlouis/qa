@@ -44,12 +44,18 @@ class DatasetFilesSaver():
             print("Saving text tokens to binary pickle files")
             filtered_text_tokens = {}
             filtered_gnd_truths_dict = {}
+            filtered_squad_ids_dict = {}
+            filtered_passage_contexts_dict = {}
             for z in range(question_ids_np_arr.shape[0]):
                 question_id = question_ids_np_arr[z]
                 filtered_gnd_truths_dict[question_id] = \
                     self.data.question_ids_to_ground_truths[question_id]
                 filtered_text_tokens[question_id] = \
                     self.data.text_tokens_dict[question_id]
+                filtered_squad_ids_dict[question_id] = \
+                    self.data.question_ids_to_squad_question_id[question_id]
+                filtered_passage_contexts_dict[question_id] = \
+                    self.data.question_ids_to_passage_context[question_id]
 
             save_pickle_file(file_names.text_tokens_file_name,
                 filtered_text_tokens)
@@ -57,6 +63,14 @@ class DatasetFilesSaver():
             print("Saving question ids to ground truths dict")
             save_pickle_file(file_names.question_ids_to_ground_truths_file_name,
                 filtered_gnd_truths_dict)
+
+            print("Saving question ids to SQuAD question ids dict")
+            save_pickle_file(file_names.question_ids_to_squad_question_id_file_name,
+                filtered_squad_ids_dict)
+
+            print("Saving passage contexts to SQuAD question ids dict")
+            save_pickle_file(file_names.question_ids_to_passage_context_file_name,
+                filtered_passage_contexts_dict)
 
             print("Saving span numpy arrays")
             np.save(file_names.spn_file_name,

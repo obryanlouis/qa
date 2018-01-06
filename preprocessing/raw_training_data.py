@@ -15,7 +15,9 @@ class RawTrainingData():
                 context_pos,
                 question_pos,
                 context_ner,
-                question_ner):
+                question_ner,
+                question_ids_to_squad_question_id,
+                question_ids_to_passage_context):
         self.list_contexts = list_contexts
         self.list_word_in_question = list_word_in_question
         self.list_questions = list_questions
@@ -28,3 +30,5 @@ class RawTrainingData():
         self.question_pos = question_pos
         self.context_ner = context_ner
         self.question_ner = question_ner
+        self.question_ids_to_squad_question_id = question_ids_to_squad_question_id
+        self.question_ids_to_passage_context = question_ids_to_passage_context
