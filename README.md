@@ -25,15 +25,17 @@ Results
 ------------
 |Model                    | Dev Em            | Dev F1   | Details |
 | ------------------------|:-----------------:| -------- |:------: |
-|Fusion Net               | 74.1%             | 82.6%    | Checkout [4aeaf74fd97f730aed3b1a753a427628a8729144](https://github.com/obryanlouis/qa/commit/4aeaf74fd97f730aed3b1a753a427628a8729144) `python3 train_local.py --model_type=fusion_net --rnn_size=128 --batch_size=16 --input_dropout=0.4 --rnn_dropout=0.3 --dropout=0.4` training time ~11 hours over 2 1080 Ti GPUs, ~31 min/epoch        |
-|Mnemonic reader (+ CoVe) | 72.5%             | 81.2%    | Checkout [b31a8e8ec1897c1eef8e80570cca19ea08b85467](https://github.com/obryanlouis/qa/commit/b31a8e8ec1897c1eef8e80570cca19ea08b85467) `python3 train_local.py --model_type=mnemonic_reader --rnn_size=60 --use_cove_vectors=True --dropout=0.3 --batch_size=50` training time ~5 hours over 2 1080 Ti GPUs, ~9.7 min/epoch     |
-|Rnet                     | 61.4%             | 71.7%    |         |
-|Match LSTM               | 59.4%             | 69.5%    |         |
+|Fusion Net               | 73.5%             | 82.0%    | Checkout [82feaa3f78a51eaeb66c5578c5d5a9f125711312](https://github.com/obryanlouis/qa/commit/82feaa3f78a51eaeb66c5578c5d5a9f125711312) `python3 train_local.py --model_type=fusion_net --rnn_size=128 --batch_size=16 --input_dropout=0.4 --rnn_dropout=0.3 --dropout=0.4` training time ~11 hours over 2 1080 Ti GPUs, ~31 min/epoch        |
+|Mnemonic reader          | 71.2%               | 80.1%    | Checkout [82feaa3f78a51eaeb66c5578c5d5a9f125711312](https://github.com/obryanlouis/qa/commit/82feaa3f78a51eaeb66c5578c5d5a9f125711312) `python3 train_local.py --model_type=mnemonic_reader --rnn_size=40 --batch_size=65 --input_dropout=0.3 --rnn_dropout=0.3 --dropout=0.3` training time ~6 hours over 2 1080 Ti GPUs, ~8 min/epoch     |
+|Rnet                     | ~60%             | ~70%    |         |
+|Match LSTM               | ~58%             | ~68%    |         |
 
 All results are for a single model rather than an ensemble.
 I didn't train all models for the same duration and there may be bugs or
 unoptimized hyperparameters in my implementation.
 
+Thanks to [@Bearsuny](https://github.com/Bearsuny) for identifying an issue
+in the evaluation. It now uses the official/correct scoring mechanism.
 
 Requirements
 -------------
