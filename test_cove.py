@@ -4,7 +4,7 @@ from flags import get_options_from_flags
 from model.cove_lstm import load_cove_lstm
 from model.cudnn_cove_lstm import load_cudnn_cove_lstm
 from preprocessing.s3_util import *
-from preprocessing.vocab_util import get_vocab
+from preprocessing.vocab import get_vocab
 from torch.autograd import Variable
 from train.trainer import Trainer
 from util.file_util import *

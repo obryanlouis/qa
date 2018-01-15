@@ -12,7 +12,7 @@ import tensorflow as tf
 
 from datasets.iterator_wrapper import *
 from datasets.file_util import *
-from preprocessing.vocab_util import get_vocab
+from preprocessing.vocab import get_vocab
 from util.file_util import *
 
 
@@ -60,8 +60,6 @@ class _SquadDataset:
             constants.WORD_IN_CONTEXT_FILE_PATTERN)
         self.question_ids_files = get_data_files_list(files_dir,
             constants.QUESTION_IDS_FILE_PATTERN)
-        self.question_ids_to_gnd_truths_files = get_data_files_list(files_dir,
-            constants.QUESTION_IDS_TO_GND_TRUTHS_FILE_PATTERN)
         self.context_pos_files = get_data_files_list(files_dir,
             constants.CONTEXT_POS_FILE_PATTERN)
         self.context_ner_files = get_data_files_list(files_dir,
@@ -70,8 +68,6 @@ class _SquadDataset:
             constants.QUESTION_POS_FILE_PATTERN)
         self.question_ner_files = get_data_files_list(files_dir,
             constants.QUESTION_NER_FILE_PATTERN)
-        self.text_tokens_files = get_data_files_list(files_dir,
-            constants.TEXT_TOKENS_FILE_PATTERN)
         self.question_ids_to_squad_id_files = get_data_files_list(files_dir,
             constants.QUESTION_IDS_TO_SQUAD_QUESTION_ID_FILE_PATTERN)
         self.question_ids_to_passage_context_files = get_data_files_list(files_dir,
@@ -83,12 +79,10 @@ class _SquadDataset:
         assert len(self.context_files) == len(self.word_in_question_files)
         assert len(self.context_files) == len(self.word_in_context_files)
         assert len(self.context_files) == len(self.question_ids_files)
-        assert len(self.context_files) == len(self.question_ids_to_gnd_truths_files)
         assert len(self.context_files) == len(self.context_pos_files)
         assert len(self.context_files) == len(self.context_ner_files)
         assert len(self.context_files) == len(self.question_pos_files)
         assert len(self.context_files) == len(self.question_ner_files)
-        assert len(self.context_files) == len(self.text_tokens_files)
         assert len(self.context_files) == len(self.question_ids_to_squad_id_files)
         assert len(self.context_files) == len(self.question_ids_to_passage_context_files)
 
@@ -113,9 +107,9 @@ class _SquadDataset:
         passage_context = self.question_ids_to_passage_context[question_id]
         return passage_context.acceptable_gnd_truths
 
-    def get_sentence(self, example_idx, start_idx, end_idx):
+    def get_sentence(self, question_id, start_idx, end_idx):
         # A 'PassageContext' defined in preprocessing/create_train_data.py
-        passage_context = self.question_ids_to_passage_context[example_idx]
+        passage_context = self.question_ids_to_passage_context[question_id]
         max_word_id = max(passage_context.word_id_to_text_positions.keys())
         text_start_idx = passage_context.word_id_to_text_positions[min(start_idx, max_word_id)].start_idx
         text_end_idx = passage_context.word_id_to_text_positions[min(end_idx, max_word_id)].end_idx
@@ -157,14 +151,10 @@ class _SquadDataset:
         self.wiq = self._load_2d_np_arr_with_possible_padding(self.word_in_question_files[self.current_file_number], max_ctx_len, pad_value=0)
         self.wic = self._load_2d_np_arr_with_possible_padding(self.word_in_context_files[self.current_file_number], max_qst_len, pad_value=0)
         self.qid = np.load(self.question_ids_files[self.current_file_number])
-        self.question_ids_to_ground_truths = load_text_file(
-            self.question_ids_to_gnd_truths_files[self.current_file_number])
         self.ctx_pos = self._load_2d_np_arr_with_possible_padding(self.context_pos_files[self.current_file_number], max_ctx_len, pad_value=0)
         self.ctx_ner = self._load_2d_np_arr_with_possible_padding(self.context_ner_files[self.current_file_number], max_ctx_len, pad_value=0)
         self.qst_pos = self._load_2d_np_arr_with_possible_padding(self.question_pos_files[self.current_file_number], max_qst_len, pad_value=0)
         self.qst_ner = self._load_2d_np_arr_with_possible_padding(self.question_ner_files[self.current_file_number], max_qst_len, pad_value=0)
-        self.text_tokens_dict = load_text_file(
-            self.text_tokens_files[self.current_file_number])
         self.question_ids_to_squad_ids = load_text_file(
             self.question_ids_to_squad_id_files[self.current_file_number])
         self.question_ids_to_passage_context = load_text_file(
@@ -218,7 +208,7 @@ class SquadData:
 
 
         self.embeddings = embedding_util.load_word_embeddings_including_unk_and_padding(options)
-        self.word_chars = embedding_util.load_word_char_embeddings_including_unk_and_padding(options)
+        self.word_chars = embedding_util.load_word_char_embeddings(options)
 
         self.word_vec_size = constants.WORD_VEC_DIM
         self.max_word_len = constants.MAX_WORD_LEN

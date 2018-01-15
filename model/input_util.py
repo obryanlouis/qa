@@ -1,6 +1,7 @@
 """Functions for creating model inputs.
 """
 
+import preprocessing.chars as chars
 import preprocessing.constants as constants
 import tensorflow as tf
 
@@ -59,7 +60,7 @@ def _create_word_similarity(primary_iterator, secondary_iterator, v_wiq_or_wic,
 
 def _create_char_embedding(sq_dataset, options):
     return tf.get_variable("char_embeddings",
-            shape=[2**8 + 2, options.character_embedding_size],
+            shape=[chars.MAX_ID + 1, options.character_embedding_size],
             dtype=tf.float32)
 
 def _run_cudnn_char_birnn(sess, scope, embedded_chars_tensor, options,

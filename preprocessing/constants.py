@@ -28,7 +28,6 @@ CONTEXT_POS_FILE_PATTERN = "context.pos.%d.npy"
 CONTEXT_NER_FILE_PATTERN = "context.ner.%d.npy"
 QUESTION_POS_FILE_PATTERN = "question.pos.%d.npy"
 QUESTION_NER_FILE_PATTERN = "question.ner.%d.npy"
-TEXT_TOKENS_FILE_PATTERN = "text_tokens.%d"
 QUESTION_IDS_TO_SQUAD_QUESTION_ID_FILE_PATTERN = "question_ids_to_squad_question_id.%d"
 QUESTION_IDS_TO_PASSAGE_CONTEXT_FILE_PATTERN = "passage_context.%d"
 

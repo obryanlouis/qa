@@ -5,12 +5,7 @@ import numpy as np
 import operator
 import os
 import preprocessing.constants as constants
-
-# Reduce the maximum number of characters to prevent blowing up the data set
-# size.
-MAX_CHARS = (2**8) - 2
-CHAR_PAD_ID = MAX_CHARS + 1
-CHAR_UNK_ID = CHAR_PAD_ID + 1
+import preprocessing.chars as chars
 
 def load_word_embeddings_including_unk_and_padding(options):
     embeddings = np.load(os.path.join(options.data_dir,
@@ -18,11 +13,8 @@ def load_word_embeddings_including_unk_and_padding(options):
     # Add in all 0 embeddings for the padding and unk vectors
     return np.concatenate((embeddings, np.zeros((2, embeddings.shape[1]))))
 
-def load_word_char_embeddings_including_unk_and_padding(options):
-    word_chars = np.load(os.path.join(options.data_dir,
-        constants.VOCAB_CHARS_FILE))
-    return np.concatenate((word_chars,
-        np.full((2, word_chars.shape[1]), fill_value=CHAR_UNK_ID)))
+def load_word_char_embeddings(options):
+    return np.load(os.path.join(options.data_dir, constants.VOCAB_CHARS_FILE))
 
 def _get_line_count(filename):
     num_lines = 0
@@ -43,9 +35,12 @@ def split_vocab_and_embedding(data_dir, download_dir):
     print("Creating NumPy word embedding file and vocab files")
     num_lines = _get_line_count(input_file)
     print("Vocab size: %d" % num_lines)
-    embedding = np.zeros((num_lines, constants.WORD_VEC_DIM), dtype=np.float32)
+    # Include 4 entries for bos/eos/unk/pad (they will all be left as 0 vectors).
+    embedding = np.zeros((num_lines + 4, constants.WORD_VEC_DIM), dtype=np.float32)
     vocab_o_file = open(vocab_output_file, "w", encoding="utf-8")
-    vocab_chars = np.zeros((num_lines, constants.MAX_WORD_LEN), dtype=np.uint8)
+    # Get IDs for the total vocab, not just the words. This includes
+    # the bos/eos/unk/pad.
+    vocab_chars = np.zeros((num_lines + 4, constants.MAX_WORD_LEN), dtype=np.uint8)
     i_file = open(input_file, "r", encoding="utf-8")
     i = 0
     char_counts = {}
@@ -66,18 +61,28 @@ def split_vocab_and_embedding(data_dir, download_dir):
             print("Processed %d of %d (%f percent done)" % (i, num_lines, 100 * float(i) / float(num_lines)), end="\r")
     sorted_chars = sorted(char_counts.items(), key=operator.itemgetter(1),
         reverse=True)
-    frequent_chars = dict((x[0], i) for i, x in enumerate(sorted_chars[:MAX_CHARS]))
+    frequent_chars = dict((x[0], i) for i, x in enumerate(
+        sorted_chars[:chars.MAX_CHARS]))
     print("")
     print("Creating word character data")
     for z in range(len(vocab_list)):
         word = vocab_list[z]
-        for zz in range(constants.MAX_WORD_LEN):
+        vocab_chars[z, 0] = chars.CHAR_BOW_ID
+        for zz in range(constants.MAX_WORD_LEN - 1):
+            insert_index = zz + 1
             if zz >= len(word):
-                vocab_chars[z, zz] = CHAR_PAD_ID
+                vocab_chars[z, insert_index] = chars.CHAR_PAD_ID
             elif word[zz] not in frequent_chars:
-                vocab_chars[z, zz] = CHAR_UNK_ID
+                vocab_chars[z, insert_index] = chars.CHAR_UNK_ID
             else:
-                vocab_chars[z, zz] = frequent_chars[word[zz]]
+                vocab_chars[z, insert_index] = frequent_chars[word[zz]]
+        vocab_chars[z, min(1 + len(word), constants.MAX_WORD_LEN - 1)] = \
+            chars.CHAR_EOW_ID
+    # The order of the following must match that of vocab.py
+    vocab_chars[num_lines, :] = chars.CHAR_BOS_ID
+    vocab_chars[num_lines + 1, :] = chars.CHAR_EOS_ID
+    vocab_chars[num_lines + 2, :] = chars.CHAR_PAD_ID
+    vocab_chars[num_lines + 3, :] = chars.CHAR_UNK_ID
     np.save(vocab_chars_output_file, vocab_chars)
     np.save(embedding_output_file, embedding)
     vocab_o_file.close()

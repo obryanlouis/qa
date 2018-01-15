@@ -44,7 +44,7 @@ Requirements
 * [Cove vectors](https://github.com/salesforce/cove) - You can skip this part
   but will probably need to manually remove any cove references in the setup.
   This also requires [pytorch](http://pytorch.org/).
-* Tensorflow >= 1.3
+* Tensorflow 1.4
 * cuDNN 7 recommended, GPUs required
 
 Using AWS S3

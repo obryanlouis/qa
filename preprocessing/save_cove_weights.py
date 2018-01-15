@@ -5,7 +5,7 @@ import preprocessing.embedding_util as embedding_util
 import torch
 
 from cove import MTLSTM
-from preprocessing.vocab_util import get_vocab
+from preprocessing.vocab import get_vocab
 
 def save_cove_weights(options):
     """Saves the weights of the CoVe LSTM for manual TensorFlow initialization.

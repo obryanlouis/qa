@@ -163,6 +163,8 @@ def _eval(session, towers, squad_dataset, options, is_train, sample_limit):
                 end="\r", flush=True)
     print("")
     if not is_train:
+        if not os.path.exists(options.evaluation_dir):
+            os.makedirs(options.evaluation_dir)
         with open(os.path.join(options.evaluation_dir,
             "predictions.json"), mode="w") as predictions_file:
             json.dump(squad_prediction_format, predictions_file)

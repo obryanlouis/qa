@@ -1,6 +1,7 @@
-from preprocessing.vocab_util import *
+from preprocessing.vocab import *
 from datasets.squad_data import SquadData
 from flags import get_options_from_flags
+from util.string_util import *
 
 import tensorflow as tf
 
@@ -23,7 +24,7 @@ def _print_qst_or_ctx_np_arr(arr, vocab, ds, is_ctx, wiq_or_wic,
             if wiq_or_wic[z, zz] == 1:
                 word = ("[WIQ:]" if is_ctx else "[WIC:]") + word
             l.append(word)
-        print(" ".join(l))
+        print(" ".join([utf8_str(x) for x in l]))
         print("")
 
 def _print_gnd_truths(ds, vocab):
@@ -31,6 +32,12 @@ def _print_gnd_truths(ds, vocab):
         question_id = ds.qid[z]
         sentences = ds.get_sentences_for_all_gnd_truths(question_id)
         print(";".join(sentences))
+
+def _print_spans(ds):
+    for z in range(min(PRINT_LIMIT, ds.spn.shape[0])):
+        question_id = ds.qid[z]
+        print("span indices", ds.spn[z], "values",
+            ds.get_sentence(question_id, ds.spn[z, 0], ds.spn[z, 1]))
 
 def _print_ds(vocab, ds):
     print("Context")
@@ -41,7 +48,7 @@ def _print_ds(vocab, ds):
         question_ids=ds.qid,
         question_ids_to_squad_ids=ds.question_ids_to_squad_ids)
     print("Spans")
-    print(ds.spn[:PRINT_LIMIT])
+    _print_spans(ds)
     print("Ground truths")
     _print_gnd_truths(ds, vocab)
     print("")

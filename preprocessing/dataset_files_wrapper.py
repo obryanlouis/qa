@@ -13,7 +13,6 @@ class DatasetFilesWrapper():
 
     def create_new_file_names(self):
         file_names = FileNames(
-            self._full_file_name(constants.TEXT_TOKENS_FILE_PATTERN),
             self._full_file_name(constants.QUESTION_FILE_PATTERN),
             self._full_file_name(constants.CONTEXT_FILE_PATTERN),
             self._full_file_name(constants.SPAN_FILE_PATTERN),
@@ -36,7 +35,6 @@ class DatasetFilesWrapper():
 
 class FileNames():
     def __init__(self,
-                 text_tokens_file_name,
                  qst_file_name,
                  ctx_file_name,
                  spn_file_name,
@@ -50,7 +48,6 @@ class FileNames():
                  question_ner_file_name,
                  question_ids_to_squad_question_id_file_name,
                  question_ids_to_passage_context_file_name):
-        self.text_tokens_file_name = text_tokens_file_name
         self.qst_file_name = qst_file_name
         self.ctx_file_name = ctx_file_name
         self.spn_file_name = spn_file_name

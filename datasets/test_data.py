@@ -9,7 +9,7 @@ import preprocessing.constants as constants
 import tensorflow as tf
 
 from datasets.iterator_wrapper import *
-from preprocessing.vocab_util import get_vocab
+from preprocessing.vocab import get_vocab
 
 
 _WORD_DIM = 300

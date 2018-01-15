@@ -5,6 +5,7 @@ import json
 import numpy as np
 import os
 import preprocessing.constants as constants
+import re
 import spacy
 import time
 
@@ -12,8 +13,15 @@ from preprocessing.dataset_files_saver import *
 from preprocessing.dataset_files_wrapper import *
 from preprocessing.file_util import *
 from preprocessing.raw_training_data import *
+from preprocessing.spacy_util import create_tokenizer
 from preprocessing.string_category import *
-from preprocessing.vocab_util import get_vocab
+from preprocessing.vocab import get_vocab
+from util.string_util import *
+
+_BOS = "bos"
+_EOS = "eos"
+
+_DEBUG_USE_ONLY_FIRST_ARTICLE = False
 
 # Note: Some of the training/dev data seems to be inaccurate. This code
 # tries to make sure that at least one of the "qa" options in the acceptable
@@ -47,35 +55,46 @@ class DataParser():
     def _parse_data_from_tokens_list(self, tokens_list, tokens_ner_dict):
         """Input: A spaCy doc.
 
-           Ouptut: (vocab_ids_list, words_list, vocab_ids_set,
-                   pos_list, ner_list)
+           Ouptut: (vocab_ids_list, vocab_ids_set, pos_list, ner_list)
         """
         vocab_ids_list = []
-        words_list = []
         vocab_ids_set = set()
         pos_list = []
         ner_list = []
         for zz in range(len(tokens_list)):
             token = tokens_list[zz]
-            word = token.text
-            vocab_id = self.vocab.get_id_for_word(word)
+            vocab_id = None
+            token_pos = None
+            token_ner = None
+            if not isinstance(token, spacy.tokens.token.Token) and token == _BOS:
+                vocab_id = self.vocab.BOS_ID
+                token_pos = "bos"
+                token_ner = "bos"
+            elif not isinstance(token, spacy.tokens.token.Token) and token == _EOS:
+                vocab_id = self.vocab.EOS_ID
+                token_pos = "eos"
+                token_ner = "eos"
+            else:
+                word = token.text
+                vocab_id = self.vocab.get_id_for_word(word)
+                token_pos = token.pos_
+                token_ner = tokens_ner_dict[token.idx].label_ \
+                    if token.idx in tokens_ner_dict else "none"
+                vocab_ids_set.add(vocab_id)
             vocab_ids_list.append(vocab_id)
-            vocab_ids_set.add(vocab_id)
-            words_list.append(word)
-            pos_list.append(self.pos_categories.get_id_for_word(token.pos_))
-            ner = tokens_ner_dict[token.idx].label_ \
-                if token.idx in tokens_ner_dict else "none"
-            ner_list.append(self.ner_categories.get_id_for_word(ner))
-        return vocab_ids_list, words_list, vocab_ids_set, pos_list, ner_list
+            pos_list.append(self.pos_categories.get_id_for_word(token_pos))
+            ner_list.append(self.ner_categories.get_id_for_word(token_ner))
+        return vocab_ids_list, vocab_ids_set, pos_list, ner_list
 
     def _maybe_add_samples(self, tok_context=None, tok_question=None, qa=None,
         ctx_offset_dict=None, ctx_end_offset_dict=None, list_contexts=None,
         list_word_in_question=None, list_questions=None,
         list_word_in_context=None, spans=None, num_values=None,
-        text_tokens_dict=None, question_ids=None,
-        question_ids_to_ground_truths=None, context_pos=None,
+        question_ids=None,
+        context_pos=None,
         question_pos=None, context_ner=None, question_ner=None,
-        is_dev=None, ctx_ner_dict=None, qst_ner_dict=None):
+        is_dev=None, ctx_ner_dict=None, qst_ner_dict=None,
+        psg_ctx=None):
         first_answer = True
         for answer in qa["answers"]:
             answer_start = answer["answer_start"]
@@ -89,11 +108,13 @@ class DataParser():
                 # If so, find the smallest surrounding text instead.
                 for z in range(len(tok_context)):
                     tok = tok_context[z]
+                    if not isinstance(tok, spacy.tokens.token.Token):
+                        continue
                     st = tok.idx
-                    end = st + len(tok_context.text)
+                    end = st + len(tok.text)
                     if st <= answer_start and answer_start <= end:
                         tok_start = tok
-                        if z == len(tok_context) - 1:
+                        if z == len(tok_context) - 2:
                             tok_end = tok
                     elif tok_start is not None:
                         tok_end = tok
@@ -101,13 +122,19 @@ class DataParser():
                             break
             tok_start = tok_start if tok_start is not None else ctx_offset_dict[answer_start]
             tok_end = tok_end if tok_end is not None else ctx_end_offset_dict[answer_end]
-            tok_start_idx = list(tok_context).index(tok_start)
-            tok_end_idx = list(tok_context).index(tok_end)
-            gnd_truths_list = []
-            if self.question_id in question_ids_to_ground_truths:
-                gnd_truths_list = question_ids_to_ground_truths[self.question_id]
-            gnd_truths_list.append((tok_start_idx, tok_end_idx))
-            question_ids_to_ground_truths[self.question_id] = gnd_truths_list
+            tok_start_idx, tok_end_idx = None, None
+            for z in range(len(tok_context)):
+                tok = tok_context[z]
+                if not isinstance(tok, spacy.tokens.token.Token): # BOS, EOS
+                    continue
+                if tok == tok_start:
+                    tok_start_idx = z
+                if tok == tok_end:
+                    tok_end_idx = z
+                if tok_start_idx is not None and tok_end_idx is not None:
+                    break
+            assert(tok_start_idx is not None)
+            assert(tok_end_idx is not None)
             # For dev, only keep one exmaple per question, and the set of all
             # acceptable answers. This reduces the required memory for storing
             # data.
@@ -118,15 +145,14 @@ class DataParser():
             spans.append([tok_start_idx, tok_end_idx])
             question_ids.append(self.question_id)
 
-            ctx_vocab_ids_list, ctx_words_list, ctx_vocab_ids_set, \
+            ctx_vocab_ids_list, ctx_vocab_ids_set, \
                 ctx_pos_list, ctx_ner_list = \
                 self._parse_data_from_tokens_list(tok_context, ctx_ner_dict)
-            text_tokens_dict[self.question_id] = ctx_words_list
             list_contexts.append(ctx_vocab_ids_list)
             context_pos.append(ctx_pos_list)
             context_ner.append(ctx_ner_list)
 
-            qst_vocab_ids_list, qst_words_list, qst_vocab_ids_set, \
+            qst_vocab_ids_list, qst_vocab_ids_set, \
                 qst_pos_list, qst_ner_list = \
                 self._parse_data_from_tokens_list(tok_question, qst_ner_dict)
             list_questions.append(qst_vocab_ids_list)
@@ -164,16 +190,11 @@ class DataParser():
             word_in_context: list of lists of booleans indicating whether each
                 word in the question is present in the context
             spans: numpy array of shape (num_samples, 2)
-            text_tokens_dict: a dictionary of { question_id -> list of strings 
-                in the context }
             question_ids: a list of ints that indicates which question the
                 given sample is part of. this has the same length as
                 |contexts| and |questions|. multiple samples may come from
                 the same question because there are potentially multiple valid
                 answers for the same question
-            question_id_to_ground_truths: a map whose keys are question id's
-                the same as in the above |question_ids| return value and whose
-                values are sets of acceptable answer strings
         """
         filename = os.path.join(self.download_dir, data_file)
         print("Reading data from file", filename)
@@ -185,10 +206,8 @@ class DataParser():
             list_contexts = []
             list_word_in_question = []
             list_questions = []
-            text_tokens_dict = {}
             list_word_in_context = []
             question_ids = []
-            question_ids_to_ground_truths = {}
             context_pos = []
             question_pos = []
             context_ner = []
@@ -196,22 +215,58 @@ class DataParser():
             question_ids_to_squad_question_id = {}
             question_ids_to_passage_context = {}
             self.value_idx = 0
-            for article in dataset:
+            for dataset_id in range(len(dataset)):
+                if dataset_id > 0 and _DEBUG_USE_ONLY_FIRST_ARTICLE:
+                    break
+                article = dataset[dataset_id]
                 for paragraph in article["paragraphs"]:
                     context = paragraph["context"]
                     tok_context = self.nlp(context)
+                    tok_contexts_with_bos_and_eos = []
                     ctx_ner_dict = self._get_ner_dict(tok_context)
                     assert tok_context is not None
                     ctx_offset_dict = {}
                     ctx_end_offset_dict = {}
                     word_idx_to_text_position = {}
-                    for z in range(len(tok_context)):
-                        tok = tok_context[z]
-                        st = tok.idx
-                        end = tok.idx + len(tok.text)
-                        ctx_offset_dict[st] = tok
-                        ctx_end_offset_dict[end] = tok
-                        word_idx_to_text_position[z] = TextPosition(st, end)
+
+                    word_idx = 0
+                    for sentence in tok_context.sents:
+                        tok_contexts_with_bos_and_eos.append(_BOS)
+                        word_idx_to_text_position[word_idx] = \
+                            TextPosition(0, 0)
+                        word_idx += 1
+                        for token in sentence:
+                            tok_contexts_with_bos_and_eos.append(token)
+                            st = token.idx
+                            end = token.idx + len(token.text)
+                            ctx_offset_dict[st] = token
+                            ctx_end_offset_dict[end] = token
+                            word_idx_to_text_position[word_idx] = \
+                                TextPosition(st, end)
+                            word_idx += 1
+                        tok_contexts_with_bos_and_eos.append(_EOS)
+                        word_idx_to_text_position[word_idx] = \
+                            TextPosition(0, 0)
+                        word_idx += 1
+
+#                    word_idx = 0
+#                    tok_contexts_with_bos_and_eos.append(_BOS)
+#                    word_idx_to_text_position[word_idx] = \
+#                        TextPosition(0, 0)
+#                    word_idx += 1
+#                    for token in tok_context:
+#                        tok_contexts_with_bos_and_eos.append(token)
+#                        st = token.idx
+#                        end = token.idx + len(token.text)
+#                        ctx_offset_dict[st] = token
+#                        ctx_end_offset_dict[end] = token
+#                        word_idx_to_text_position[word_idx] = \
+#                            TextPosition(st, end)
+#                        word_idx += 1
+#                    tok_contexts_with_bos_and_eos.append(_EOS)
+#                    word_idx_to_text_position[word_idx] = \
+#                        TextPosition(0, 0)
+
                     for qa in paragraph["qas"]:
                         self.question_id += 1
                         acceptable_gnd_truths = []
@@ -226,12 +281,25 @@ class DataParser():
                         question_ids_to_squad_question_id[self.question_id] = \
                             squad_question_id
                         tok_question = self.nlp(question)
+                        tok_question_with_bos_and_eos = []
+
+                        for sentence in tok_question.sents:
+                            tok_question_with_bos_and_eos.append(_BOS)
+                            for token in sentence:
+                                tok_question_with_bos_and_eos.append(token)
+                            tok_question_with_bos_and_eos.append(_EOS)
+
+#                        tok_question_with_bos_and_eos.append(_BOS)
+#                        for token in tok_question:
+#                            tok_question_with_bos_and_eos.append(token)
+#                        tok_question_with_bos_and_eos.append(_EOS)
+
                         qst_ner_dict = self._get_ner_dict(tok_question)
                         assert tok_question is not None
                         found_answer_in_context = False
                         found_answer_in_context = self._maybe_add_samples(
-                            tok_context=tok_context,
-                            tok_question=tok_question, qa=qa,
+                            tok_context=tok_contexts_with_bos_and_eos,
+                            tok_question=tok_question_with_bos_and_eos, qa=qa,
                             ctx_offset_dict=ctx_offset_dict,
                             ctx_end_offset_dict=ctx_end_offset_dict,
                             list_contexts=list_contexts,
@@ -239,14 +307,13 @@ class DataParser():
                             list_questions=list_questions,
                             list_word_in_context=list_word_in_context,
                             spans=spans, num_values=num_values,
-                            text_tokens_dict=text_tokens_dict,
                             question_ids=question_ids,
-                            question_ids_to_ground_truths=question_ids_to_ground_truths,
                             context_pos=context_pos, question_pos=question_pos,
                             context_ner=context_ner, question_ner=question_ner,
                             is_dev=is_dev,
                             ctx_ner_dict=ctx_ner_dict,
-                            qst_ner_dict=qst_ner_dict)
+                            qst_ner_dict=qst_ner_dict,
+                            psg_ctx=question_ids_to_passage_context[self.question_id])
             print("")
             spans = np.array(spans[:self.value_idx], dtype=np.int32)
             return RawTrainingData(
@@ -255,9 +322,7 @@ class DataParser():
                 list_questions = list_questions,
                 list_word_in_context = list_word_in_context,
                 spans = spans,
-                text_tokens_dict = text_tokens_dict,
                 question_ids = question_ids,
-                question_ids_to_ground_truths = question_ids_to_ground_truths,
                 context_pos = context_pos,
                 question_pos = question_pos,
                 context_ner = context_ner,
@@ -282,6 +347,8 @@ class DataParser():
         self.vocab = get_vocab(self.data_dir)
         print("Finished getting vocabulary")
         self.nlp = spacy.load("en")
+        self.tokenizer = create_tokenizer(self.nlp)
+        self.nlp.tokenizer = self.tokenizer
         print("Getting DEV dataset")
         dev_raw_data = self._create_train_data_internal(
             constants.DEV_SQUAD_FILE, is_dev=True)

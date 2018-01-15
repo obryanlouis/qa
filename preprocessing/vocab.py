@@ -6,17 +6,15 @@ import operator
 import os
 import preprocessing.constants as constants
 
-# Reduce the maximum number of characters to prevent blowing up the data set
-# size.
-MAX_CHARS = (2**8) - 2
-
 class Vocab:
     def __init__(self, word_to_position, position_to_word):
         self._word_to_position = word_to_position
         self._position_to_word = position_to_word
         max_id = max(position_to_word.keys())
-        self.PAD_ID = max_id + 1
-        self.UNK_ID = self.PAD_ID + 1
+        self.BOS_ID = max_id + 1
+        self.EOS_ID = max_id + 2
+        self.PAD_ID = max_id + 3
+        self.UNK_ID = max_id + 4
     def is_pad_word_id(self, word_id):
         return word_id == self.PAD_ID
     def get_vocab_size_without_pad_or_unk(self):
@@ -30,10 +28,15 @@ class Vocab:
     def get_word_for_id(self, word_id, print_padding_and_unique=True):
         if word_id in self._position_to_word:
             return self._position_to_word[word_id]
-        if word_id != self.UNK_ID and word_id != self.PAD_ID:
+        if word_id != self.UNK_ID and word_id != self.PAD_ID \
+            and word_id != self.BOS_ID and word_id != self.EOS_ID:
             raise Exception("Can't find word for id %d" % word_id)
         if not print_padding_and_unique:
             return ""
+        if word_id == self.BOS_ID:
+            return "<BOS>"
+        if word_id == self.EOS_ID:
+            return "<EOS>"
         if word_id == self.UNK_ID:
             return "<UNIQUE_WORD>"
         if word_id == self.PAD_ID:
